@@ -158,6 +158,14 @@ enum MainMenu {
             }
             group.forEach { menu.addItem($0.menuItem()) }
         }
+        menu.addItem(.separator())
+        menu.addItem("Bigger", #selector(AppDelegate.makeTextBigger(_:)), "+")
+        // ⌘= (no Shift) is what people actually press for "bigger".
+        let equals = menu.addItem("Bigger", #selector(AppDelegate.makeTextBigger(_:)), "=")
+        equals.isHidden = true
+        equals.allowsKeyEquivalentWhenHidden = true
+        menu.addItem("Smaller", #selector(AppDelegate.makeTextSmaller(_:)), "-")
+        menu.addItem("Default Size", #selector(AppDelegate.resetTextSize(_:)), "0")
         return menu
     }
 

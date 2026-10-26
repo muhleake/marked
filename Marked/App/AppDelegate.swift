@@ -22,6 +22,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool { true }
 
+    // MARK: - Editor font size (Format ▸ Bigger / Smaller), persisted in UserDefaults
+
+    @objc func makeTextBigger(_ sender: Any?) { Preferences.editorFontSize += 1 }
+    @objc func makeTextSmaller(_ sender: Any?) { Preferences.editorFontSize -= 1 }
+    @objc func resetTextSize(_ sender: Any?) { Preferences.editorFontSize = Preferences.defaultFontSize }
+
     @objc func showSettings(_ sender: Any?) {
         // Settings window arrives in Phase 6.
     }

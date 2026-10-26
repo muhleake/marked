@@ -39,6 +39,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         window.toolbarStyle = .expanded
 
         splitController.layout = document.isPlainText ? .editorOnly : Preferences.defaultLayout
+        // `self.document` isn't set until addWindowController, so use the parameter.
+        splitController.editorController.isMarkdownEnabled = !document.isPlainText
     }
 
     @available(*, unavailable)
@@ -95,6 +97,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     /// Hook for features that depend on Markdown mode (toolbar, tinting).
     func markdownModeDidChange() {
+        splitController.editorController.isMarkdownEnabled = isMarkdownEnabled
         toolbarController?.syncLayout()
         for item in window?.toolbar?.items ?? [] where item.itemIdentifier == ToolbarController.headingItem {
             item.isEnabled = canApplyMarkdown

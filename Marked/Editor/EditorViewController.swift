@@ -1,10 +1,23 @@
 import AppKit
 
 /// The raw-text pane: an NSTextView on the document's text storage.
-final class EditorViewController: NSViewController {
+final class EditorViewController: NSViewController, NSTextViewDelegate {
     let textStorage: NSTextStorage
     private(set) var textView: NSTextView!
     private(set) var scrollView: NSScrollView!
+    private(set) var statusLabel: NSTextField!
+    private(set) var highlighter: MarkdownHighlighter!
+
+    /// Tinting and list editing; off for plain .txt unless "Treat as Markdown".
+    var isMarkdownEnabled = true {
+        didSet { highlighter?.isEnabled = isMarkdownEnabled }
+    }
+
+    private static let countQueue = DispatchQueue(label: "io.github.muhleake.marked.counts", qos: .utility)
+    private var pendingCount: DispatchWorkItem?
+    private var countGeneration = 0
+    /// Latest counts shown in the status bar (words, characters, lines).
+    private(set) var counts = TextCounts(words: 0, characters: 0, lines: 0)
 
     /// Called (coalesced) when the visible text scrolls.
     var onScroll: (() -> Void)?
@@ -57,17 +70,41 @@ final class EditorViewController: NSViewController {
         self.textView = textView
         self.scrollView = scrollView
 
+        // Slim status bar: words · characters · lines.
+        let statusLabel = NSTextField(labelWithString: "")
+        statusLabel.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+        statusLabel.textColor = .secondaryLabelColor
+        statusLabel.lineBreakMode = .byTruncatingTail
+        statusLabel.setAccessibilityIdentifier("status")
+        self.statusLabel = statusLabel
+        let separator = NSBox()
+        separator.boxType = .separator
+
         let root = NSView()
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        root.addSubview(scrollView)
+        for view in [scrollView, separator, statusLabel] as [NSView] {
+            view.translatesAutoresizingMaskIntoConstraints = false
+            root.addSubview(view)
+        }
         NSLayoutConstraint.activate([
             scrollView.leadingAnchor.constraint(equalTo: root.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: root.trailingAnchor),
             scrollView.topAnchor.constraint(equalTo: root.topAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: root.bottomAnchor),
+            separator.topAnchor.constraint(equalTo: scrollView.bottomAnchor),
+            separator.leadingAnchor.constraint(equalTo: root.leadingAnchor),
+            separator.trailingAnchor.constraint(equalTo: root.trailingAnchor),
+            statusLabel.leadingAnchor.constraint(equalTo: root.leadingAnchor, constant: 12),
+            statusLabel.trailingAnchor.constraint(lessThanOrEqualTo: root.trailingAnchor, constant: -12),
+            statusLabel.topAnchor.constraint(equalTo: separator.bottomAnchor, constant: 3),
+            statusLabel.bottomAnchor.constraint(equalTo: root.bottomAnchor, constant: -4),
         ])
         view = root
+        textView.delegate = self
+        highlighter = MarkdownHighlighter(textStorage: textStorage, enabled: isMarkdownEnabled)
         applyFontSize()
+        updateCounts(immediately: true)
+
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(fontSizeDidChange(_:)), name: .editorFontSizeDidChange, object: nil)
 
         scrollView.contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(
@@ -76,7 +113,62 @@ final class EditorViewController: NSViewController {
     }
 
     @objc private func storageDidProcessEditing(_ note: Notification) {
-        if textStorage.editedMask.contains(.editedCharacters) { lineStarts = nil }
+        guard textStorage.editedMask.contains(.editedCharacters) else { return }
+        lineStarts = nil
+        updateCounts()
+    }
+
+    @objc private func fontSizeDidChange(_ note: Notification) {
+        applyFontSize()
+    }
+
+    // MARK: - Status bar
+
+    /// Counts off the main thread (word counting a long document isn't free),
+    /// coalescing bursts of typing.
+    func updateCounts(immediately: Bool = false) {
+        pendingCount?.cancel()
+        countGeneration += 1
+        let generation = countGeneration
+        let item = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            let text = self.textStorage.string
+            Self.countQueue.async {
+                let counts = TextCounts(text)
+                DispatchQueue.main.async {
+                    guard generation == self.countGeneration else { return }
+                    self.counts = counts
+                    self.statusLabel.stringValue = counts.description
+                }
+            }
+        }
+        pendingCount = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + (immediately ? 0 : 0.12), execute: item)
+    }
+
+    // MARK: - NSTextViewDelegate
+
+    func textView(_ textView: NSTextView, doCommandBy selector: Selector) -> Bool {
+        guard isMarkdownEnabled else { return false }
+        let text = textView.string, selection = textView.selectedRange()
+        switch selector {
+        case #selector(NSResponder.insertNewline(_:)):
+            guard let edit = ListContinuation.newline(in: text, selection: selection) else { return false }
+            apply(edit, actionName: "Typing")
+            return true
+        case #selector(NSResponder.insertTab(_:)):
+            guard let edit = ListContinuation.indent(in: text, selection: selection, outdent: false) else { return false }
+            apply(edit, actionName: "Indent")
+            return true
+        case #selector(NSResponder.insertBacktab(_:)):
+            // Shift-Tab never moves focus out of the editor.
+            if let edit = ListContinuation.indent(in: text, selection: selection, outdent: true) {
+                apply(edit, actionName: "Outdent")
+            }
+            return true
+        default:
+            return false
+        }
     }
 
     @objc private func visibleRectDidChange(_ note: Notification) {
@@ -180,7 +272,37 @@ final class EditorViewController: NSViewController {
         textView.font = attributes[.font] as? NSFont
         textView.defaultParagraphStyle = attributes[.paragraphStyle] as? NSParagraphStyle
         textView.typingAttributes = attributes
-        let full = NSRange(location: 0, length: textStorage.length)
-        textStorage.addAttributes(attributes, range: full)
+        highlighter?.highlightAll()
+    }
+}
+
+/// Status bar numbers.
+struct TextCounts: Equatable, CustomStringConvertible {
+    var words: Int
+    var characters: Int
+    var lines: Int
+
+    init(words: Int, characters: Int, lines: Int) {
+        self.words = words
+        self.characters = characters
+        self.lines = lines
+    }
+
+    init(_ text: String) {
+        var words = 0
+        let ns = text as NSString
+        ns.enumerateSubstrings(in: NSRange(location: 0, length: ns.length), options: [.byWords, .substringNotRequired]) { _, _, _, _ in
+            words += 1
+        }
+        self.words = words
+        characters = text.count
+        lines = text.isEmpty ? 0 : text.utf8.reduce(1) { $1 == 0x0A ? $0 + 1 : $0 }
+    }
+
+    var description: String {
+        func plural(_ n: Int, _ word: String) -> String {
+            "\(n.formatted()) \(word)\(n == 1 ? "" : "s")"
+        }
+        return [plural(words, "word"), plural(characters, "character"), plural(lines, "line")].joined(separator: " · ")
     }
 }
