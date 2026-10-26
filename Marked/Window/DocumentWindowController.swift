@@ -65,6 +65,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         set {
             splitController.layout = newValue
             toolbarController?.syncLayout()
+            window?.invalidateRestorableState()
             if newValue == .split { splitController.syncPreviewScroll() }
             if newValue == .previewOnly, window?.firstResponder === editorTextView {
                 window?.makeFirstResponder(splitController.previewController.webView)
@@ -90,9 +91,14 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     /// without renaming the file.
     @objc func toggleTreatAsMarkdown(_ sender: Any?) {
         guard markdownDocument?.isPlainText == true else { return }
-        treatsAsMarkdown.toggle()
-        layout = treatsAsMarkdown ? Preferences.defaultLayout : .editorOnly
+        setTreatsAsMarkdown(!treatsAsMarkdown)
+    }
+
+    private func setTreatsAsMarkdown(_ on: Bool) {
+        treatsAsMarkdown = on
+        layout = on ? Preferences.defaultLayout : .editorOnly
         markdownModeDidChange()
+        window?.invalidateRestorableState()
     }
 
     /// Hook for features that depend on Markdown mode (toolbar, tinting).
@@ -118,6 +124,43 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         window?.makeFirstResponder(editor.textView)
         editor.apply(action.edit(in: editor.textView.string, selection: editor.textView.selectedRange()),
                      actionName: action.title)
+    }
+
+    // MARK: - Copy as HTML
+
+    /// Edit ▸ Copy as HTML: the rendered HTML of the selection, or of the whole
+    /// document when nothing is selected. Goes on the pasteboard as HTML and as text.
+    @objc func copyAsHTML(_ sender: Any?) {
+        guard let textView = editorTextView else { return }
+        let selection = textView.selectedRange()
+        let source = selection.length > 0 ? (textView.string as NSString).substring(with: selection) : textView.string
+        let html = MarkdownRenderer.html(from: source, sourcePositions: false)
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(html, forType: .html)
+        pasteboard.setString(html, forType: .string)
+    }
+
+    // MARK: - State restoration (layout and Treat as Markdown, per window)
+
+    private enum RestorationKey {
+        static let layout = "MarkedLayout"
+        static let treatsAsMarkdown = "MarkedTreatsAsMarkdown"
+    }
+
+    func window(_ window: NSWindow, willEncodeRestorableState state: NSCoder) {
+        state.encode(layout.rawValue as NSString, forKey: RestorationKey.layout)
+        state.encode(treatsAsMarkdown, forKey: RestorationKey.treatsAsMarkdown)
+    }
+
+    func window(_ window: NSWindow, didDecodeRestorableState state: NSCoder) {
+        if state.decodeBool(forKey: RestorationKey.treatsAsMarkdown), markdownDocument?.isPlainText == true {
+            setTreatsAsMarkdown(true)
+        }
+        if let raw = state.decodeObject(of: NSString.self, forKey: RestorationKey.layout),
+           let restored = PreviewLayout(rawValue: raw as String), isMarkdownEnabled {
+            layout = restored
+        }
     }
 
     func validateToolbarItem(_ item: NSToolbarItem) -> Bool {

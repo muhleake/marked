@@ -159,7 +159,19 @@ html, body {
 }
 .markdown-body .footnotes { font-size: 12px; color: var(--fg-muted); border-top: 1px solid var(--border); }
 
+/* Plain-text documents print as-is. */
+.markdown-body pre.plain-text {
+  padding: 0;
+  background: none;
+  white-space: pre-wrap;
+  font-size: 11px;
+}
+
 @media print {
-  .markdown-body { max-width: none; padding: 0; }
+  :root {
+    --fg: #1f2328; --fg-muted: #59636e; --bg: #ffffff; --bg-subtle: #f6f8fa;
+    --border: #d1d9e0; --border-muted: #d1d9e0b3; --link: #0969da; --code-bg: #818b981f;
+  }
+  .markdown-body { max-width: none; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .markdown-body pre, .markdown-body table, .markdown-body img { break-inside: avoid; }
 }

@@ -29,6 +29,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func resetTextSize(_ sender: Any?) { Preferences.editorFontSize = Preferences.defaultFontSize }
 
     @objc func showSettings(_ sender: Any?) {
-        // Settings window arrives in Phase 6.
+        SettingsWindowController.shared.showWindow(sender)
+    }
+
+    /// Catches edits made by other apps while Marked was in the background, in case
+    /// a file-presenter notification was missed.
+    func applicationDidBecomeActive(_ notification: Notification) {
+        for case let document as MarkdownDocument in NSDocumentController.shared.documents {
+            document.checkForExternalChange()
+        }
     }
 }

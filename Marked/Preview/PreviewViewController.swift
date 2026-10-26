@@ -51,22 +51,31 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
         pendingRender?.cancel()
     }
 
-    override func loadView() {
+    static var shellURL: URL? { Bundle.main.url(forResource: "preview", withExtension: "html") }
+
+    /// A web view set up like the preview: no persistent data, Marked's isolated-world script.
+    static func makeWebView(frame: NSRect) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
-        configuration.suppressesIncrementalRendering = false
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = false
         configuration.userContentController.addUserScript(WKUserScript(
-            source: Self.isolatedScript, injectionTime: .atDocumentEnd,
+            source: isolatedScript, injectionTime: .atDocumentEnd,
             forMainFrameOnly: true, in: .defaultClient))
-
-        let webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 480, height: 600), configuration: configuration)
-        webView.navigationDelegate = self
+        let webView = WKWebView(frame: frame, configuration: configuration)
         webView.allowsBackForwardNavigationGestures = false
         webView.allowsLinkPreview = false
+        return webView
+    }
+
+    override func loadView() {
+        let webView = Self.makeWebView(frame: NSRect(x: 0, y: 0, width: 480, height: 600))
+        webView.navigationDelegate = self
         webView.setAccessibilityLabel("Preview")
         self.webView = webView
         view = webView
+        applyTheme()
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(themeDidChange(_:)), name: .previewThemeDidChange, object: nil)
 
         ContentRules.load { [weak self] rules in
             guard let self else { return }
@@ -76,8 +85,15 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
         }
     }
 
+    @objc private func themeDidChange(_ note: Notification) { applyTheme() }
+
+    /// Settings ▸ Preview theme: follow the system, or force light/dark.
+    private func applyTheme() {
+        webView.appearance = Preferences.previewTheme.appearance
+    }
+
     private func loadShell() {
-        guard let shell = Bundle.main.url(forResource: "preview", withExtension: "html") else { return }
+        guard let shell = Self.shellURL else { return }
         // Read access to "/" lets relative images anywhere on disk load (the app is unsandboxed).
         webView.loadFileURL(shell, allowingReadAccessTo: URL(fileURLWithPath: "/"))
     }
@@ -168,7 +184,7 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
     /// links open in the default browser (or app, for local files).
     func policy(for url: URL?, type: WKNavigationType, isMainFrame: Bool) -> WKNavigationActionPolicy {
         guard let url else { return .cancel }
-        let shell = Bundle.main.url(forResource: "preview", withExtension: "html")
+        let shell = Self.shellURL
 
         if type == .linkActivated {
             // In-page anchors (#heading) scroll within the preview.
@@ -188,7 +204,7 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
 
     // MARK: - Isolated-world script
 
-    private static let isolatedScript = #"""
+    static let isolatedScript = #"""
     (() => {
       const article = () => document.getElementById('content');
       const sourceStart = el => parseInt(el.getAttribute('data-sourcepos'), 10);
