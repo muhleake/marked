@@ -162,6 +162,19 @@ final class EditorViewController: NSViewController {
         textView.isAutomaticTextCompletionEnabled = false
     }
 
+    /// Applies a Markdown command as a single undo step, then selects its result.
+    func apply(_ edit: MarkdownEdit, actionName: String) {
+        textView.breakUndoCoalescing()
+        guard textView.shouldChangeText(in: edit.range, replacementString: edit.replacement) else { return }
+        textStorage.replaceCharacters(in: edit.range,
+                                      with: NSAttributedString(string: edit.replacement, attributes: EditorStyle.baseAttributes()))
+        textView.didChangeText()
+        textView.undoManager?.setActionName(actionName)
+        textView.setSelectedRange(edit.selection)
+        textView.scrollRangeToVisible(edit.selection)
+        textView.breakUndoCoalescing()
+    }
+
     func applyFontSize() {
         let attributes = EditorStyle.baseAttributes()
         textView.font = attributes[.font] as? NSFont

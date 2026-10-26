@@ -141,7 +141,24 @@ enum MainMenu {
     // MARK: - Format
 
     private static func formatMenu() -> NSMenu {
-        NSMenu(title: "Format")
+        let menu = NSMenu(title: "Format")
+        let groups: [[MarkdownAction]] = [
+            [.bold, .italic, .strikethrough],
+            [],  // Heading submenu
+            [.bulletList, .numberedList, .taskList, .quote],
+            [.inlineCode, .codeBlock],
+            [.link, .image, .table, .horizontalRule],
+        ]
+        for (index, group) in groups.enumerated() {
+            if index > 0 { menu.addItem(.separator()) }
+            if group.isEmpty {
+                let headings = NSMenu(title: "Heading")
+                MarkdownAction.headings.forEach { headings.addItem($0.menuItem()) }
+                menu.addItem(submenu: headings)
+            }
+            group.forEach { menu.addItem($0.menuItem()) }
+        }
+        return menu
     }
 
     // MARK: - View

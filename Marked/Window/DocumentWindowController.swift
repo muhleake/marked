@@ -1,7 +1,8 @@
 import AppKit
 
-final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation {
+final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation, NSToolbarItemValidation {
     let splitController: SplitViewController
+    private(set) var toolbarController: ToolbarController!
 
     /// Per-window: a `.txt` document shown with Markdown preview and tinting.
     var treatsAsMarkdown = false
@@ -33,6 +34,10 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         window.delegate = self
         shouldCascadeWindows = true
 
+        toolbarController = ToolbarController(windowController: self)
+        window.toolbar = toolbarController.makeToolbar()
+        window.toolbarStyle = .expanded
+
         splitController.layout = document.isPlainText ? .editorOnly : Preferences.defaultLayout
     }
 
@@ -57,6 +62,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         get { splitController.layout }
         set {
             splitController.layout = newValue
+            toolbarController?.syncLayout()
             if newValue == .split { splitController.syncPreviewScroll() }
             if newValue == .previewOnly, window?.firstResponder === editorTextView {
                 window?.makeFirstResponder(splitController.previewController.webView)
@@ -89,7 +95,30 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
 
     /// Hook for features that depend on Markdown mode (toolbar, tinting).
     func markdownModeDidChange() {
+        toolbarController?.syncLayout()
+        for item in window?.toolbar?.items ?? [] where item.itemIdentifier == ToolbarController.headingItem {
+            item.isEnabled = canApplyMarkdown
+        }
         window?.toolbar?.validateVisibleItems()
+    }
+
+    // MARK: - Markdown actions
+
+    /// Formatting applies to the editor; off for plain .txt and while the editor is hidden.
+    var canApplyMarkdown: Bool { isMarkdownEnabled && layout != .previewOnly }
+
+    /// Toolbar buttons and Format menu items; the sender's tag is a MarkdownAction.
+    @objc func applyMarkdownAction(_ sender: Any?) {
+        guard canApplyMarkdown, let tag = (sender as? NSValidatedUserInterfaceItem)?.tag,
+              let action = MarkdownAction(rawValue: tag) else { NSSound.beep(); return }
+        let editor = splitController.editorController
+        window?.makeFirstResponder(editor.textView)
+        editor.apply(action.edit(in: editor.textView.string, selection: editor.textView.selectedRange()),
+                     actionName: action.title)
+    }
+
+    func validateToolbarItem(_ item: NSToolbarItem) -> Bool {
+        item.action == #selector(applyMarkdownAction(_:)) ? canApplyMarkdown : true
     }
 
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
@@ -99,6 +128,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
             return isMarkdownEnabled
         case #selector(cyclePreviewLayout(_:)):
             return isMarkdownEnabled
+        case #selector(applyMarkdownAction(_:)):
+            return canApplyMarkdown
         case #selector(toggleTreatAsMarkdown(_:)):
             let plain = markdownDocument?.isPlainText == true
             item.state = plain && treatsAsMarkdown ? .on : .off

@@ -7,9 +7,11 @@ Source of truth: `docs/SPEC.md`. Each phase is ticked only when build + tests + 
 - [x] Phase 1 — Behavior reference — menus, document lifecycle, plain text, encodings, find, spelling, print and scope documented in docs/BEHAVIOR.md.
 - [x] Phase 2 — Document model, window, editor — NSDocument (.md/.markdown/.mdown/.txt), UTF-8/UTF-16/1252 read + UTF-8 write with CRLF kept, split window w/ tabs, SF Mono editor (substitutions off, find bar, spellcheck), menus in code. 32 tests pass: open/edit/save/reopen, revert, duplicate, Open Recent menu, undo, CRLF, 1252.
 - [x] Phase 3 — Live preview — cmark-gfm (table/strikethrough/tasklist/autolink/tagfilter + footnotes, sourcepos) off-main, WKWebView shell updated in place via isolated-world JS, CSP blocks page script, content rules block all non-file loads, links open externally, relative images resolve, ⌥⌘P cycles layouts, Treat as Markdown, scroll sync. 5,000-line doc: cmark 4.6 ms median warm (17 ms cold), 0.26 ms main-thread per edit, ~210 ms edit→visible incl. 150 ms debounce. 55 tests pass.
-- [ ] Phase 4 — Toolbar and Markdown commands
+- [x] Phase 4 — Toolbar and Markdown commands — pure MarkdownCommands (inline wrap/unwrap incl. ***, _, cursor-in-span; line prefixes w/ heading replace, list renumber, task/quote; fences; link/image; table; rule) applied as one undo step; customizable NSToolbar (SF Symbols, heading dropdown, layout segmented control); Format menu with spec shortcuts. 79 command tests + 7 UI tests; 54 menu shortcuts, no duplicates.
 - [ ] Phase 5 — Editor polish
 - [ ] Phase 6 — Finish and install
+
+- Phase 4 shortcut notes: no conflicts remain among the 54 menu key equivalents (checked with AppKit's runtime items present). ⌥⌘T = Table, so View ▸ Show Toolbar has no shortcut. Shifted shortcuts (⇧⌘8/7/./-) are declared by their shifted character (*, &, >, _), which is what AppKit matches; that assumes a US keyboard layout. Formatting is disabled in plain .txt windows (until Treat as Markdown) and in Preview Only.
 
 ## Acceptance tests
 
