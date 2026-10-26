@@ -2,29 +2,27 @@ import AppKit
 
 @main
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private var window: NSWindow?
-
     static func main() {
         let app = NSApplication.shared
+        // The first NSDocumentController created becomes the shared one.
+        _ = MarkdownDocumentController()
         let delegate = AppDelegate()
         app.delegate = delegate
         app.setActivationPolicy(.regular)
         app.run()
     }
 
-    func applicationDidFinishLaunching(_ notification: Notification) {
-        let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 900, height: 600),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
-            backing: .buffered,
-            defer: false
-        )
-        window.title = "Marked"
-        window.center()
-        window.makeKeyAndOrderFront(nil)
-        self.window = window
-        NSApp.activate(ignoringOtherApps: true)
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        Preferences.registerDefaults()
+        NSWindow.allowsAutomaticWindowTabbing = true
+        NSApp.mainMenu = MainMenu.build()
     }
 
-    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+    func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool { true }
+
+    func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool { true }
+
+    @objc func showSettings(_ sender: Any?) {
+        // Settings window arrives in Phase 6.
+    }
 }

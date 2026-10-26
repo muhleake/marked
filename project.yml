@@ -62,6 +62,31 @@ targets:
         NSHumanReadableCopyright: "Released into the public domain."
         NSSupportsAutomaticTermination: true
         NSSupportsSuddenTermination: false
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Markdown Document
+            CFBundleTypeRole: Editor
+            LSHandlerRank: Default
+            LSItemContentTypes: [net.daringfireball.markdown, io.github.muhleake.marked.mdown]
+            NSDocumentClass: $(PRODUCT_MODULE_NAME).MarkdownDocument
+          - CFBundleTypeName: Plain Text Document
+            CFBundleTypeRole: Editor
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [public.plain-text]
+            NSDocumentClass: $(PRODUCT_MODULE_NAME).MarkdownDocument
+        UTImportedTypeDeclarations:
+          - UTTypeIdentifier: net.daringfireball.markdown
+            UTTypeDescription: Markdown Document
+            UTTypeConformsTo: [public.plain-text]
+            UTTypeReferenceURL: https://daringfireball.net/projects/markdown/
+            UTTypeTagSpecification:
+              public.filename-extension: [md, markdown, mdown]
+              public.mime-type: [text/markdown]
+        UTExportedTypeDeclarations:
+          - UTTypeIdentifier: io.github.muhleake.marked.mdown
+            UTTypeDescription: Markdown Document
+            UTTypeConformsTo: [net.daringfireball.markdown, public.plain-text]
+            UTTypeTagSpecification:
+              public.filename-extension: [mdown]
 
   MarkedTests:
     type: bundle.unit-test
@@ -87,5 +112,7 @@ schemes:
     test:
       config: Debug
       targets: [MarkedTests]
+      commandLineArguments:
+        "-ApplePersistenceIgnoreState YES": true
     archive:
       config: Release
