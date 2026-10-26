@@ -22,7 +22,7 @@ enum PreviewLayout: String, CaseIterable {
 /// Editor on the left, preview on the right; either side can collapse.
 final class SplitViewController: NSSplitViewController {
     let editorController: EditorViewController
-    let previewController: NSViewController
+    let previewController: PreviewViewController
 
     private lazy var editorItem = NSSplitViewItem(viewController: editorController)
     private lazy var previewItem = NSSplitViewItem(viewController: previewController)
@@ -33,8 +33,15 @@ final class SplitViewController: NSSplitViewController {
 
     init(document: MarkdownDocument) {
         editorController = EditorViewController(textStorage: document.textStorage)
-        previewController = PreviewPlaceholderViewController()
+        previewController = PreviewViewController(document: document)
         super.init(nibName: nil, bundle: nil)
+        editorController.onScroll = { [weak self] in self?.syncPreviewScroll() }
+    }
+
+    /// Editor → preview scroll sync (approximate), only while both are visible.
+    func syncPreviewScroll() {
+        guard layout == .split else { return }
+        previewController.scrollToSourceLine(editorController.topVisibleSourceLine())
     }
 
     @available(*, unavailable)
@@ -61,17 +68,8 @@ final class SplitViewController: NSSplitViewController {
         guard isViewLoaded else { return }
         editorItem.isCollapsed = layout == .previewOnly
         previewItem.isCollapsed = layout == .editorOnly
+        previewController.isActive = layout != .editorOnly
     }
 
     var isPreviewVisible: Bool { layout != .editorOnly }
-}
-
-/// Empty right-hand pane until the live preview exists.
-final class PreviewPlaceholderViewController: NSViewController {
-    override func loadView() {
-        let view = NSView()
-        view.wantsLayer = true
-        view.layer?.backgroundColor = NSColor.textBackgroundColor.cgColor
-        self.view = view
-    }
 }

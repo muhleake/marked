@@ -148,6 +148,14 @@ enum MainMenu {
 
     private static func viewMenu() -> NSMenu {
         let menu = NSMenu(title: "View")
+        let setLayout = #selector(DocumentWindowController.setPreviewLayout(_:))
+        for (index, layout) in PreviewLayout.allCases.enumerated() {
+            menu.addItem(layout.title, setLayout).tag = index
+        }
+        menu.addItem("Cycle Layout", #selector(DocumentWindowController.cyclePreviewLayout(_:)), "p", [.command, .option])
+        menu.addItem(.separator())
+        menu.addItem("Treat as Markdown", #selector(DocumentWindowController.toggleTreatAsMarkdown(_:)))
+        menu.addItem(.separator())
         menu.addItem("Show Toolbar", #selector(NSWindow.toggleToolbarShown(_:)))
         menu.addItem("Customize Toolbar…", #selector(NSWindow.runToolbarCustomizationPalette(_:)))
         menu.addItem(.separator())

@@ -6,9 +6,23 @@ final class EditorViewController: NSViewController {
     private(set) var textView: NSTextView!
     private(set) var scrollView: NSScrollView!
 
+    /// Called (coalesced) when the visible text scrolls.
+    var onScroll: (() -> Void)?
+    private var scrollNotificationPending = false
+
+    /// UTF-16 offsets where each line starts; rebuilt lazily after edits.
+    private var lineStarts: [Int]?
+
     init(textStorage: NSTextStorage) {
         self.textStorage = textStorage
         super.init(nibName: nil, bundle: nil)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(storageDidProcessEditing(_:)),
+            name: NSTextStorage.didProcessEditingNotification, object: textStorage)
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 
     @available(*, unavailable)
@@ -54,6 +68,75 @@ final class EditorViewController: NSViewController {
         ])
         view = root
         applyFontSize()
+
+        scrollView.contentView.postsBoundsChangedNotifications = true
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(visibleRectDidChange(_:)),
+            name: NSView.boundsDidChangeNotification, object: scrollView.contentView)
+    }
+
+    @objc private func storageDidProcessEditing(_ note: Notification) {
+        if textStorage.editedMask.contains(.editedCharacters) { lineStarts = nil }
+    }
+
+    @objc private func visibleRectDidChange(_ note: Notification) {
+        guard !scrollNotificationPending else { return }
+        scrollNotificationPending = true
+        DispatchQueue.main.async { [weak self] in
+            self?.scrollNotificationPending = false
+            self?.onScroll?()
+        }
+    }
+
+    // MARK: - Visible position
+
+    /// 1-based source line at the top of the editor, with a fraction for how far
+    /// into that line the top edge falls (long wrapped lines scroll smoothly).
+    func topVisibleSourceLine() -> Double {
+        guard let layoutManager = textView.layoutManager, let container = textView.textContainer,
+              textStorage.length > 0 else { return 1 }
+        let visible = scrollView.contentView.bounds
+        if visible.minY <= 0 { return 1 }
+        if visible.maxY >= textView.frame.height - 1 { return Double(lineIndex(ofCharacterAt: textStorage.length - 1) + 1) + 0.999 }
+
+        let origin = textView.textContainerOrigin
+        let point = NSPoint(x: 0, y: visible.minY - origin.y)
+        let glyph = layoutManager.glyphIndex(for: point, in: container)
+        let char = layoutManager.characterIndexForGlyph(at: glyph)
+        let line = lineIndex(ofCharacterAt: char)
+        let starts = lineStartOffsets()
+        let lineStart = starts[line]
+        let lineEnd = line + 1 < starts.count ? starts[line + 1] : textStorage.length
+        let fraction = lineEnd > lineStart ? Double(char - lineStart) / Double(lineEnd - lineStart) : 0
+        return Double(line + 1) + min(fraction, 0.999)
+    }
+
+    /// 0-based line containing the UTF-16 offset.
+    func lineIndex(ofCharacterAt offset: Int) -> Int {
+        let starts = lineStartOffsets()
+        var low = 0, high = starts.count - 1
+        while low < high {
+            let mid = (low + high + 1) / 2
+            if starts[mid] <= offset { low = mid } else { high = mid - 1 }
+        }
+        return low
+    }
+
+    private func lineStartOffsets() -> [Int] {
+        if let lineStarts { return lineStarts }
+        var starts = [0]
+        let string = textStorage.string as NSString
+        let length = string.length
+        var index = 0
+        while index < length {
+            let range = string.lineRange(for: NSRange(location: index, length: 0))
+            index = NSMaxRange(range)
+            if index < length || (index == length && length > 0 && string.character(at: length - 1) == 0x0A) {
+                starts.append(index)
+            }
+        }
+        lineStarts = starts
+        return starts
     }
 
     private func configure(_ textView: NSTextView) {
