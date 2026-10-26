@@ -1,0 +1,91 @@
+name: Marked
+options:
+  bundleIdPrefix: io.github.muhleake
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGN_STYLE: Manual
+    DEVELOPMENT_TEAM: ""
+    ENABLE_HARDENED_RUNTIME: NO
+    DEAD_CODE_STRIPPING: YES
+
+packages:
+  swift-cmark:
+    url: https://github.com/apple/swift-cmark
+    branch: gfm
+
+targets:
+  Marked:
+    type: application
+    platform: macOS
+    sources:
+      - path: Marked
+        excludes:
+          - Info.plist
+          - Marked.entitlements
+    dependencies:
+      - package: swift-cmark
+        product: cmark-gfm
+      - package: swift-cmark
+        product: cmark-gfm-extensions
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.muhleake.marked
+        PRODUCT_NAME: Marked
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        CODE_SIGN_ENTITLEMENTS: Marked/Marked.entitlements
+        ENABLE_APP_SANDBOX: NO
+        INFOPLIST_FILE: Marked/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        COMBINE_HIDPI_IMAGES: YES
+    info:
+      path: Marked/Info.plist
+      properties:
+        CFBundleName: Marked
+        CFBundleDisplayName: Marked
+        CFBundleIdentifier: $(PRODUCT_BUNDLE_IDENTIFIER)
+        CFBundleExecutable: $(EXECUTABLE_NAME)
+        CFBundlePackageType: APPL
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleDevelopmentRegion: en
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
+        LSApplicationCategoryType: public.app-category.productivity
+        NSPrincipalClass: NSApplication
+        NSHumanReadableCopyright: "Released into the public domain."
+        NSSupportsAutomaticTermination: true
+        NSSupportsSuddenTermination: false
+
+  MarkedTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources: [MarkedTests]
+    dependencies:
+      - target: Marked
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.muhleake.markedtests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Marked.app/Contents/MacOS/Marked
+        BUNDLE_LOADER: $(TEST_HOST)
+
+schemes:
+  Marked:
+    build:
+      targets:
+        Marked: all
+        MarkedTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets: [MarkedTests]
+    archive:
+      config: Release
