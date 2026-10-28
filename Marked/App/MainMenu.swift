@@ -145,7 +145,7 @@ enum MainMenu {
     private static func formatMenu() -> NSMenu {
         let menu = NSMenu(title: "Format")
         let groups: [[MarkdownAction]] = [
-            [.bold, .italic, .strikethrough],
+            [.bold, .italic, .strikethrough, .underline, .highlight],
             [],  // Heading submenu
             [.bulletList, .numberedList, .taskList, .quote],
             [.inlineCode, .codeBlock],
@@ -159,6 +159,7 @@ enum MainMenu {
                 menu.addItem(submenu: headings)
             }
             group.forEach { menu.addItem($0.menuItem()) }
+            if index == 0 { menu.addItem(submenu: TextColor.menu()) }
         }
         menu.addItem(.separator())
         menu.addItem("Bigger", #selector(AppDelegate.makeTextBigger(_:)), "+")

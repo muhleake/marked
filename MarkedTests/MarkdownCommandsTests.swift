@@ -179,6 +179,49 @@ final class MarkdownCommandsTests: XCTestCase {
     func testRuleOnBlankLineAfterText() { check("Para\n‸", "Para\n\n---\n‸", rule) }
     func testRuleToggleOff() { check("a\n---‸\nb", "a\n‸b", rule) }
 
+    // MARK: - Underline, highlight, text color
+
+    private let underline: Command = { MarkdownCommands.toggleTag(.underline, in: $0, selection: $1) }
+    private let highlight: Command = { MarkdownCommands.toggleTag(.highlight, in: $0, selection: $1) }
+    private let red: Command = { MarkdownCommands.toggleTag(.color("#e5484d"), in: $0, selection: $1) }
+    private let blue: Command = { MarkdownCommands.toggleTag(.color("#0090ff"), in: $0, selection: $1) }
+
+    func testUnderlineWrapAndUnwrap() {
+        check("a «word» b", "a <u>«word»</u> b", underline)
+        check("a <u>«word»</u> b", "a «word» b", underline)
+        check("a «<u>word</u>» b", "a «word» b", underline)
+    }
+    func testUnderlineCursor() {
+        check("a ‸ b", "a <u>‸</u> b", underline)
+        check("a <u>‸</u> b", "a ‸ b", underline)
+        check("<u>wo‸rd</u> x", "wo‸rd x", underline)
+    }
+    func testUnderlineKeepsWhitespaceOutside() { check("a« word »b", "a <u>«word»</u> b", underline) }
+    func testHighlightWrapAndUnwrap() {
+        check("«hot»", "<mark>«hot»</mark>", highlight)
+        check("<mark>h‸ot</mark>", "h‸ot", highlight)
+        checkRoundTrip("x «y» z", highlight)
+    }
+    func testUnderlineInsideHighlightOnlyTouchesItsOwnTags() {
+        check("<mark>«word»</mark>", "<mark><u>«word»</u></mark>", underline)
+        check("<mark><u>«word»</u></mark>", "<mark>«word»</mark>", underline)
+    }
+    func testTextColorWrap() { check("«alert»", "<span style=\"color: #e5484d\">«alert»</span>", red) }
+    func testSameColorRemoves() { check("<span style=\"color: #e5484d\">al‸ert</span>", "al‸ert", red) }
+    func testOtherColorReplaces() {
+        check("<span style=\"color: #e5484d\">«alert»</span>", "<span style=\"color: #0090ff\">«alert»</span>", blue)
+        check("<span style=\"color:#E5484D;\">a‸b</span>", "<span style=\"color: #0090ff\">a‸b</span>", blue)
+    }
+    func testRemoveColor() {
+        let (text, selection) = parse("x <span style=\"color: #8e4ec6\">pu‸rple</span>")
+        let edit = try! XCTUnwrap(MarkdownCommands.removeColor(in: text, selection: selection))
+        XCTAssertEqual(format(edit.applied(to: text), edit.selection), "x pu‸rple")
+        XCTAssertNil(MarkdownCommands.removeColor(in: "plain", selection: NSRange(location: 2, length: 0)))
+    }
+    func testTwoSpansOnALineUnwrapTheRightOne() {
+        check("<u>one</u> and <u>tw‸o</u>", "<u>one</u> and tw‸o", underline)
+    }
+
     // MARK: - Unicode safety
 
     func testEmojiAndCJKOffsets() {

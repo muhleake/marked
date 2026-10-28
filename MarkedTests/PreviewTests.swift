@@ -82,6 +82,14 @@ final class PreviewTests: XCTestCase {
         try await waitFor(preview, "const i = document.querySelector('#content img'); return i.complete && i.naturalWidth === 0", equals: true)
     }
 
+    func testUnderlineHighlightAndColorRender() async throws {
+        let controller = try await openWindow("styled.md", "<u>under</u> <mark>marked</mark> <span style=\"color: #e5484d\">red</span>")
+        let preview = controller.splitController.previewController
+        try await waitFor(preview, "return getComputedStyle(document.querySelector('#content u')).textDecorationLine", equals: "underline")
+        try await waitFor(preview, "return document.querySelector('#content mark')?.textContent ?? ''", equals: "marked")
+        try await waitFor(preview, "return getComputedStyle(document.querySelector('#content span')).color", equals: "rgb(229, 72, 77)")
+    }
+
     func testPageScriptIsDisabled() async throws {
         let controller = try await openWindow("xss.md", "<img src=\"nope.png\" onerror=\"document.title='pwned'\">\n\n<details><summary>s</summary>d</details>")
         let preview = controller.splitController.previewController

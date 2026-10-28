@@ -139,6 +139,14 @@ final class MarkdownHighlighter: NSObject, NSTextStorageDelegate {
         for m in Self.bareURL.matches(in: s, range: line) {
             color(m.range, Palette.link)
         }
+        // Inline HTML (underline, highlight, text color): dim the tags like other
+        // markers, and show colored text in its own color.
+        for m in MarkdownCommands.colorSpan.matches(in: s, range: line) {
+            if let value = NSColor(hexString: string.substring(with: m.range(at: 1))) { color(m.range(at: 2), value) }
+        }
+        for m in Self.htmlTag.matches(in: s, range: line) {
+            color(m.range, Palette.marker)
+        }
         // Code last: nothing inside a code span is emphasis.
         for m in Self.inlineCode.matches(in: s, range: line) {
             font(m.range, EditorStyle.font(size: Preferences.editorFontSize))
@@ -198,4 +206,5 @@ final class MarkdownHighlighter: NSObject, NSTextStorageDelegate {
     static let link = regex(#"!?(\[[^\]\n]*\])(\([^)\n]*\))"#)
     static let bareURL = regex(#"(?<![(<\[])\b(?:https?://|www\.)[^\s<>()]+"#)
     static let inlineCode = regex(#"(`+)[^`\n]+?\1"#)
+    static let htmlTag = regex(#"</?(?:u|mark|span|kbd|br|sup|sub|ins|del|small|details|summary)\b[^>\n]*>"#, .caseInsensitive)
 }

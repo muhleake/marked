@@ -50,6 +50,7 @@ targets:
       properties:
         CFBundleName: Marked
         CFBundleDisplayName: Marked
+        CFBundleIconFile: AppIcon
         CFBundleIdentifier: $(PRODUCT_BUNDLE_IDENTIFIER)
         CFBundleExecutable: $(EXECUTABLE_NAME)
         CFBundlePackageType: APPL

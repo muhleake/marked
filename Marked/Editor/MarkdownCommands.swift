@@ -392,6 +392,108 @@ enum MarkdownCommands {
         return MarkdownEdit(range: range, replacement: replacement, selection: newSelection)
     }
 
+    // MARK: - HTML spans: underline, highlight, text color
+
+    /// Markdown has no syntax for these, so they use inline HTML that the preview,
+    /// printing and Copy as HTML all render.
+    enum TagStyle: Equatable {
+        case underline
+        case highlight
+        /// A CSS color such as "#e5484d".
+        case color(String)
+
+        var open: String {
+            switch self {
+            case .underline: "<u>"
+            case .highlight: "<mark>"
+            case .color(let value): "<span style=\"color: \(value)\">"
+            }
+        }
+
+        var close: String {
+            switch self {
+            case .underline: "</u>"
+            case .highlight: "</mark>"
+            case .color: "</span>"
+            }
+        }
+
+        /// Matches a whole span of this kind; group 1 is the color, group 2 the content.
+        fileprivate var pattern: NSRegularExpression {
+            switch self {
+            case .underline: MarkdownCommands.underlineSpan
+            case .highlight: MarkdownCommands.highlightSpan
+            case .color: MarkdownCommands.colorSpan
+            }
+        }
+    }
+
+    private static let underlineSpan = try! NSRegularExpression(pattern: #"<u>()([\s\S]*?)</u>"#, options: .caseInsensitive)
+    private static let highlightSpan = try! NSRegularExpression(pattern: #"<mark>()([\s\S]*?)</mark>"#, options: .caseInsensitive)
+    static let colorSpan = try! NSRegularExpression(
+        pattern: #"<span style="\s*color:\s*([^";]+?)\s*;?\s*">([\s\S]*?)</span>"#, options: .caseInsensitive)
+
+    /// Wraps the selection in the style's tags, or removes them when the selection or
+    /// cursor is already inside such a span. For colors, choosing the span's own color
+    /// removes it and a different color replaces it.
+    static func toggleTag(_ style: TagStyle, in text: String, selection: NSRange) -> MarkdownEdit {
+        let s = text as NSString
+        if let span = enclosingTagSpan(style.pattern, around: selection, in: s) {
+            if case .color(let value) = style,
+               s.substring(with: span.range(at: 1)).caseInsensitiveCompare(value) != .orderedSame {
+                return rewrapping(span, open: style.open, close: style.close, selection: selection, in: s)
+            }
+            return rewrapping(span, open: "", close: "", selection: selection, in: s)
+        }
+        let open = (style.open as NSString).length
+        let core = selection.length > 0 ? trimmedWhitespace(selection, in: s) : selection
+        guard core.length > 0 else {
+            return MarkdownEdit(range: selection, replacement: style.open + style.close,
+                                selection: NSRange(location: selection.location + open, length: 0))
+        }
+        return MarkdownEdit(range: core, replacement: style.open + s.substring(with: core) + style.close,
+                            selection: NSRange(location: core.location + open, length: core.length))
+    }
+
+    /// Format ▸ Text Color ▸ Remove Color. Nil when there's no color span to remove.
+    static func removeColor(in text: String, selection: NSRange) -> MarkdownEdit? {
+        let s = text as NSString
+        guard let span = enclosingTagSpan(colorSpan, around: selection, in: s) else { return nil }
+        return rewrapping(span, open: "", close: "", selection: selection, in: s)
+    }
+
+    /// Replaces a span's tags with `open`/`close` (empty strings remove them). A cursor
+    /// keeps its place in the text; a selection becomes the span's content.
+    private static func rewrapping(_ span: NSTextCheckingResult, open: String, close: String,
+                                   selection: NSRange, in s: NSString) -> MarkdownEdit {
+        let content = span.range(at: 2)
+        let newContentStart = span.range.location + (open as NSString).length
+        let newSelection: NSRange
+        if selection.length == 0 {
+            let offset = min(max(0, selection.location - content.location), content.length)
+            newSelection = NSRange(location: newContentStart + offset, length: 0)
+        } else {
+            newSelection = NSRange(location: newContentStart, length: content.length)
+        }
+        return MarkdownEdit(range: span.range, replacement: open + s.substring(with: content) + close, selection: newSelection)
+    }
+
+    /// The span whose content holds the cursor, or that the selection lies within
+    /// (selecting the whole span, tags included, counts too).
+    private static func enclosingTagSpan(_ pattern: NSRegularExpression, around selection: NSRange,
+                                         in s: NSString) -> NSTextCheckingResult? {
+        let paragraph = s.paragraphRange(for: selection)
+        for match in pattern.matches(in: s as String, range: paragraph) {
+            let content = match.range(at: 2)
+            if selection.length == 0 {
+                if content.location <= selection.location && selection.location <= NSMaxRange(content) { return match }
+            } else if match.range.location <= selection.location && NSMaxRange(selection) <= NSMaxRange(match.range) {
+                return match
+            }
+        }
+        return nil
+    }
+
     // MARK: - Line model
 
     struct Line {

@@ -13,6 +13,10 @@ Source of truth: `docs/SPEC.md`. Each phase is ticked only when build + tests + 
 
 - Phase 4 shortcut notes: no conflicts remain among the 54 menu key equivalents (checked with AppKit's runtime items present). ⌥⌘T = Table, so View ▸ Show Toolbar has no shortcut. Shifted shortcuts (⇧⌘8/7/./-) are declared by their shifted character (*, &, >, _), which is what AppKit matches; that assumes a US keyboard layout. Formatting is disabled in plain .txt windows (until Treat as Markdown) and in Preview Only.
 
+## Additions after Phase 6
+
+- 2026-10-27 — Underline (⌘U, `<u>`), Highlight (⇧⌘H, `<mark>`), Text Color menu (8 presets + Remove Color, `<span style="color: …">`) in the toolbar and Format menu, by request. Markdown has no syntax for these, so they're inline HTML that the preview, print/PDF and Copy as HTML render; the editor dims the tags and shows colored text in its color. New enum cases were appended so saved toolbar layouts keep their identifiers. Dark-mode highlight made stronger. App icon bundled as `Marked/Resources/AppIcon.icns`. 201 tests pass.
+
 ## Acceptance tests
 
 Run 2026-10-25 against `/Applications/Marked.app` (Release, ad-hoc) and the in-process test suite (187 tests). "Auto" = verified by an automated test or measurement; "Manual" = needs a person at the keyboard (no Accessibility/Automation permission was available to drive the GUI).

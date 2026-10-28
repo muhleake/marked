@@ -156,6 +156,16 @@ final class HighlighterTests: XCTestCase {
         _ = h
     }
 
+    func testInlineHTMLTagsDimmedAndColorShown() {
+        let (s, h) = highlighted("a <u>b</u> <span style=\"color: #30a46c\">green</span>")
+        XCTAssertEqual(color(s, at: 2), MarkdownHighlighter.Palette.marker)
+        XCTAssertEqual(color(s, at: 5), .textColor)
+        let green = (s.string as NSString).range(of: "green").location
+        XCTAssertEqual(color(s, at: green), NSColor(hexString: "#30a46c"))
+        XCTAssertEqual(color(s, at: green - 1), MarkdownHighlighter.Palette.marker)
+        _ = h
+    }
+
     func testDisabledIsPlain() {
         let (s, h) = highlighted("# Title **b**", enabled: false)
         XCTAssertEqual(color(s, at: 3), .textColor)
