@@ -104,4 +104,6 @@ The zoom approach and the idea of limiting work to what changed came from studyi
 
 ## License
 
-No license has been chosen yet, so all rights are reserved.
+Marked is released into the public domain under [The Unlicense](LICENSE). Use it for anything, with no conditions and no attribution required.
+
+swift-cmark keeps its own BSD-2-Clause license. It isn't stored in this repo, but a compiled copy of Marked includes it, so anyone distributing the app needs to keep swift-cmark's copyright notice with it.
