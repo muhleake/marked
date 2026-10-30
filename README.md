@@ -4,6 +4,8 @@
 
 <p align="center">A small, fast, native Markdown editor for macOS.</p>
 
+<p align="center"><a href="https://github.com/muhleake/marked/releases/latest/download/Marked.dmg"><b>Download Marked for macOS</b></a></p>
+
 Marked is a native macOS Markdown editor: raw text on the left, a live GitHub-flavored preview on the right, and a formatting toolbar on top. It opens, edits and creates `.md`, `.markdown`, `.mdown` and `.txt` files, and nothing else.
 
 ![Marked with the editor on the left and the rendered preview on the right](docs/images/screenshot.png)
@@ -22,13 +24,22 @@ Marked isn't affiliated with the commercial Marked 2 app. It has no accounts, te
 - **Output:** Print and Export as PDF use the rendered preview. Edit ▸ Copy as HTML copies the rendered selection or the whole document.
 - **File handling:** reads UTF-8, UTF-16 and Windows-1252, always writes UTF-8, keeps LF or CRLF line endings, and prompts to reload when another app changes the file.
 
-## Requirements
+## Install
 
-- macOS 14 or later (the deployment target; so far tested only on macOS 27.0.1 on Apple silicon)
+1. [Download Marked.dmg](https://github.com/muhleake/marked/releases/latest/download/Marked.dmg), open it, and drag Marked to Applications.
+2. Open Marked. macOS says it can't verify the app, because Marked isn't notarized by Apple. Click Done.
+3. Open System Settings ▸ Privacy & Security, scroll down, and click **Open Anyway**.
+
+You only need to do this once. Marked needs macOS 14 or later and has only been tested on macOS 27.0.1 on Apple silicon. It doesn't update itself, so check [Releases](https://github.com/muhleake/marked/releases) for new versions.
+
+To make Marked the default app for a file type, use Finder: Get Info on a file ▸ Open with: Marked ▸ Change All.
+
+## Build from source
+
+You only need this to change the code. It requires:
+
 - Xcode (tested with 27.1)
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen): `brew install xcodegen`
-
-## Build and install
 
 The Xcode project is generated from `project.yml` and isn't checked in. The Makefile runs XcodeGen for you.
 
@@ -52,7 +63,7 @@ make install
 
 `make install` builds a Release copy and puts it in `/Applications`. Builds are ad-hoc signed, so no Apple developer account is needed.
 
-To make Marked the default app for a file type, use Finder: Get Info on a file ▸ Open with: Marked ▸ Change All.
+`make dmg` packages the Release build as `build.noindex/Marked.dmg`.
 
 ## Keyboard shortcuts
 
@@ -84,7 +95,7 @@ Marked/
   Resources/   App icon
 MarkedTests/   Unit and in-app integration tests
 assets/        Vector source for the app icon
-scripts/       Icon rendering script
+scripts/       Icon rendering and disk image scripts
 docs/          Report, spec, build log and behavior reference
 project.yml    XcodeGen project definition
 Makefile       Build, test, run and install

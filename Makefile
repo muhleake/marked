@@ -5,7 +5,7 @@ DERIVED     := build.noindex
 APP_DEBUG   := $(DERIVED)/Build/Products/Debug/Marked.app
 APP_RELEASE := $(DERIVED)/Build/Products/Release/Marked.app
 
-.PHONY: gen build test run release install icon clean
+.PHONY: gen build test run release install dmg icon clean
 
 gen:
 	xcodegen generate
@@ -27,6 +27,9 @@ install: release
 	cp -R $(APP_RELEASE) /Applications/Marked.app
 	/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f /Applications/Marked.app
 	@echo "Installed /Applications/Marked.app"
+
+dmg: release
+	bash scripts/make-dmg.sh
 
 icon:
 	swift scripts/make-icon.swift

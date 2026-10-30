@@ -2,7 +2,7 @@
 
 All notable changes to Marked.
 
-## Unreleased
+## 1.1 (2026-10-30)
 
 ### Added
 
@@ -13,6 +13,7 @@ All notable changes to Marked.
 - App icon, with its vector source in `assets/` and `make icon` to regenerate it.
 - [The Unlicense](LICENSE), placing Marked in the public domain.
 - A [behavior reference](docs/BEHAVIOR.md) for Marked's menus and file handling.
+- A downloadable disk image, so Marked can be installed without Xcode.
 
 ### Changed
 

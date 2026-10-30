@@ -20,7 +20,7 @@ xcodegen generate && xcodebuild -scheme Marked -destination 'platform=macOS' -de
 xcodegen generate && xcodebuild -scheme Marked -destination 'platform=macOS' -derivedDataPath build.noindex test
 ```
 
-Or `make build`, `make test`, `make run`, `make install`. Always build and run tests before saying a task is done.
+Or `make build`, `make test`, `make run`, `make install`, `make dmg`. Always build and run tests before saying a task is done.
 
 ## Keep it light
 
