@@ -2,7 +2,7 @@
 
 All notable changes to Marked.
 
-## Unreleased
+## 1.1.1 (2026-10-30)
 
 ### Changed
 
