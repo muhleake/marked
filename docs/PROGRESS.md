@@ -19,6 +19,8 @@ Source of truth: `docs/SPEC.md`. Each phase is ticked only when build + tests + 
 
 - 2026-10-30 — Repo prepared for GitHub: README and screenshot, `docs/REPORT.md` with fresh measurements, swift-cmark pinned to a revision, one type per file for `TextCounts`, `TextColor`, `ContentRules` and `PreviewLayout`, tests split into one class per file and phase-named test files renamed. No behavior changes. 202 tests pass.
 
+- 2026-10-30 — By request: removed the underline, highlight and text color tools; added preview → editor scroll sync, zoom (View ▸ Zoom In/Out/Actual Size for both panes, View ▸ Preview Zoom for the preview alone, Scale to Window, pinch), and a changelog. Editor tinting now tracks code fences incrementally and looks them up by binary search: at 50,000 lines a keystroke went from 13.3 ms to 0.2 ms and opening from 5.2 s to 0.6 s. Also fixed Return in mid-line leaving the new line untinted. Performance rerun with the Mac idle; see `docs/REPORT.md`. 204 tests pass.
+
 ## Acceptance tests
 
 Run 2026-10-25 against `/Applications/Marked.app` (Release, ad-hoc) and the in-process test suite (187 tests). "Auto" = verified by an automated test or measurement; "Manual" = needs a person at the keyboard (no Accessibility/Automation permission was available to drive the GUI).

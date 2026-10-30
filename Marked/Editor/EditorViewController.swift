@@ -203,6 +203,30 @@ final class EditorViewController: NSViewController, NSTextViewDelegate {
         return Double(line + 1) + min(fraction, 0.999)
     }
 
+    /// Scrolls so the (fractional, 1-based) source line is at the top; the inverse of
+    /// `topVisibleSourceLine`. `PreviewViewController.atDocumentEnd` scrolls to the end.
+    func scroll(toSourceLine line: Double) {
+        guard let layoutManager = textView.layoutManager, textStorage.length > 0 else { return }
+        if line == PreviewViewController.atDocumentEnd {
+            textView.scrollRangeToVisible(NSRange(location: textStorage.length, length: 0))
+            return
+        }
+        var y: CGFloat = 0
+        if line > 1 {
+            let starts = lineStartOffsets()
+            let index = min(Int(line) - 1, starts.count - 1)
+            let lineEnd = index + 1 < starts.count ? starts[index + 1] : textStorage.length
+            let offset = min(starts[index] + Int(Double(lineEnd - starts[index]) * (line - line.rounded(.down))), textStorage.length - 1)
+            // Exact positions need layout up to this point (layout is non-contiguous).
+            layoutManager.ensureLayout(forCharacterRange: NSRange(location: 0, length: offset + 1))
+            let glyph = layoutManager.glyphIndexForCharacter(at: offset)
+            y = layoutManager.lineFragmentRect(forGlyphAt: glyph, effectiveRange: nil).minY + textView.textContainerOrigin.y
+        }
+        let clip = scrollView.contentView
+        clip.scroll(to: NSPoint(x: 0, y: min(y, max(0, textView.frame.height - clip.bounds.height))))
+        scrollView.reflectScrolledClipView(clip)
+    }
+
     /// 0-based line containing the UTF-16 offset.
     func lineIndex(ofCharacterAt offset: Int) -> Int {
         let starts = lineStartOffsets()

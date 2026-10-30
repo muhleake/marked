@@ -8,8 +8,6 @@ enum MarkdownAction: Int, CaseIterable {
     case bulletList, numberedList, taskList, quote
     case inlineCode, codeBlock
     case link, image, table, horizontalRule
-    // Added later; kept at the end so saved toolbar layouts (keyed by raw value) stay valid.
-    case underline, highlight
 
     static let headings: [MarkdownAction] = [.heading1, .heading2, .heading3, .heading4, .heading5, .heading6]
 
@@ -29,8 +27,6 @@ enum MarkdownAction: Int, CaseIterable {
         case .image: "Image"
         case .table: "Table"
         case .horizontalRule: "Horizontal Rule"
-        case .underline: "Underline"
-        case .highlight: "Highlight"
         }
     }
 
@@ -50,8 +46,6 @@ enum MarkdownAction: Int, CaseIterable {
         case .image: "photo"
         case .table: "tablecells"
         case .horizontalRule: "minus"
-        case .underline: "underline"
-        case .highlight: "highlighter"
         }
     }
 
@@ -73,8 +67,6 @@ enum MarkdownAction: Int, CaseIterable {
         case .image: ("I", .command)
         case .table: ("t", [.command, .option])
         case .horizontalRule: ("_", .command)
-        case .underline: ("u", .command)
-        case .highlight: ("H", .command)
         }
     }
 
@@ -100,8 +92,6 @@ enum MarkdownAction: Int, CaseIterable {
         case .image: MarkdownCommands.toggleImage(in: text, selection: selection)
         case .table: MarkdownCommands.toggleTable(in: text, selection: selection)
         case .horizontalRule: MarkdownCommands.toggleHorizontalRule(in: text, selection: selection)
-        case .underline: MarkdownCommands.toggleTag(.underline, in: text, selection: selection)
-        case .highlight: MarkdownCommands.toggleTag(.highlight, in: text, selection: selection)
         }
     }
 

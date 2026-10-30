@@ -6,6 +6,8 @@ enum Preferences {
         static let editorFontSize = "EditorFontSize"
         static let defaultLayout = "DefaultMarkdownLayout"
         static let previewTheme = "PreviewTheme"
+        static let previewZoom = "PreviewZoom"
+        static let scalePreviewToWindow = "ScalePreviewToWindow"
     }
 
     enum PreviewTheme: String, CaseIterable {
@@ -30,12 +32,16 @@ enum Preferences {
 
     static let fontSizeRange: ClosedRange<CGFloat> = 9...36
     static let defaultFontSize: CGFloat = 13
+    static let previewZoomRange: ClosedRange<Double> = 0.5...3
+    static let previewZoomStep = 0.1
 
     static func registerDefaults() {
         UserDefaults.standard.register(defaults: [
             Key.editorFontSize: Double(defaultFontSize),
             Key.defaultLayout: PreviewLayout.split.rawValue,
             Key.previewTheme: PreviewTheme.system.rawValue,
+            Key.previewZoom: 1.0,
+            Key.scalePreviewToWindow: false,
             // Markdown is corrupted by smart substitutions; keep them off app-wide.
             "NSAutomaticQuoteSubstitutionEnabled": false,
             "NSAutomaticDashSubstitutionEnabled": false,
@@ -60,6 +66,28 @@ enum Preferences {
         set { UserDefaults.standard.set(newValue.rawValue, forKey: Key.defaultLayout) }
     }
 
+    /// Preview page zoom, 1 = 100%. Rounded so repeated steps land on whole percents.
+    static var previewZoom: Double {
+        get {
+            let value = UserDefaults.standard.double(forKey: Key.previewZoom)
+            return value > 0 ? value.clamped(to: previewZoomRange) : 1
+        }
+        set {
+            let rounded = ((newValue * 100).rounded() / 100).clamped(to: previewZoomRange)
+            UserDefaults.standard.set(rounded, forKey: Key.previewZoom)
+            NotificationCenter.default.post(name: .previewZoomDidChange, object: nil)
+        }
+    }
+
+    /// Scales the preview with its pane, on top of `previewZoom`.
+    static var scalePreviewToWindow: Bool {
+        get { UserDefaults.standard.bool(forKey: Key.scalePreviewToWindow) }
+        set {
+            UserDefaults.standard.set(newValue, forKey: Key.scalePreviewToWindow)
+            NotificationCenter.default.post(name: .previewZoomDidChange, object: nil)
+        }
+    }
+
     static var previewTheme: PreviewTheme {
         get { PreviewTheme(rawValue: UserDefaults.standard.string(forKey: Key.previewTheme) ?? "") ?? .system }
         set {
@@ -72,6 +100,7 @@ enum Preferences {
 extension Notification.Name {
     static let editorFontSizeDidChange = Notification.Name("MarkedEditorFontSizeDidChange")
     static let previewThemeDidChange = Notification.Name("MarkedPreviewThemeDidChange")
+    static let previewZoomDidChange = Notification.Name("MarkedPreviewZoomDidChange")
 }
 
 extension Comparable {

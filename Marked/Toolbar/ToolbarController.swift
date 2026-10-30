@@ -6,7 +6,6 @@ final class ToolbarController: NSObject, NSToolbarDelegate {
     static let identifier = NSToolbar.Identifier("MarkedDocumentToolbar")
     static let headingItem = NSToolbarItem.Identifier("heading")
     static let layoutItem = NSToolbarItem.Identifier("layout")
-    static let textColorItem = NSToolbarItem.Identifier("textColor")
 
     private weak var windowController: DocumentWindowController?
     private var layoutGroups: [NSToolbarItemGroup] = []
@@ -30,7 +29,7 @@ final class ToolbarController: NSObject, NSToolbarDelegate {
     }
 
     private static let buttonActions: [MarkdownAction] = [
-        .bold, .italic, .strikethrough, .underline, .highlight, .bulletList, .numberedList, .taskList, .quote,
+        .bold, .italic, .strikethrough, .bulletList, .numberedList, .taskList, .quote,
         .inlineCode, .codeBlock, .link, .image, .table, .horizontalRule,
     ]
 
@@ -39,8 +38,7 @@ final class ToolbarController: NSObject, NSToolbarDelegate {
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         let id = Self.identifier(for:)
         return [
-            id(.bold), id(.italic), id(.strikethrough), id(.underline), id(.highlight), Self.textColorItem,
-            Self.headingItem, .space,
+            id(.bold), id(.italic), id(.strikethrough), Self.headingItem, .space,
             id(.bulletList), id(.numberedList), id(.taskList), id(.quote), .space,
             id(.inlineCode), id(.codeBlock), id(.link), id(.image), id(.table), id(.horizontalRule),
             .flexibleSpace, Self.layoutItem,
@@ -48,15 +46,13 @@ final class ToolbarController: NSObject, NSToolbarDelegate {
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        Self.buttonActions.map(Self.identifier(for:))
-            + [Self.headingItem, Self.textColorItem, Self.layoutItem, .space, .flexibleSpace]
+        Self.buttonActions.map(Self.identifier(for:)) + [Self.headingItem, Self.layoutItem, .space, .flexibleSpace]
     }
 
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier,
                  willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
         if identifier == Self.headingItem { return headingItem() }
         if identifier == Self.layoutItem { return layoutItem() }
-        if identifier == Self.textColorItem { return textColorItem() }
         guard let action = Self.buttonActions.first(where: { Self.identifier(for: $0) == identifier }) else { return nil }
 
         let item = NSToolbarItem(itemIdentifier: identifier)
@@ -83,18 +79,6 @@ final class ToolbarController: NSObject, NSToolbarDelegate {
         item.paletteLabel = "Heading"
         item.toolTip = "Heading (⌘1–⌘6)"
         item.image = NSImage(systemSymbolName: "number", accessibilityDescription: "Heading")
-        item.isBordered = true
-        return item
-    }
-
-    private func textColorItem() -> NSToolbarItem {
-        let item = NSMenuToolbarItem(itemIdentifier: Self.textColorItem)
-        item.menu = TextColor.menu()
-        item.showsIndicator = true
-        item.label = "Text Color"
-        item.paletteLabel = "Text Color"
-        item.toolTip = "Text Color"
-        item.image = NSImage(systemSymbolName: "paintpalette", accessibilityDescription: "Text Color")
         item.isBordered = true
         return item
     }

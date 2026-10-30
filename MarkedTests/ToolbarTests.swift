@@ -59,7 +59,7 @@ final class ToolbarTests: XCTestCase {
         let toolbar = try XCTUnwrap(controller.window?.toolbar)
         XCTAssertTrue(toolbar.allowsUserCustomization)
         let ids = toolbar.items.map(\.itemIdentifier)
-        for action in [MarkdownAction.bold, .italic, .strikethrough, .underline, .highlight, .bulletList, .numberedList, .taskList, .quote,
+        for action in [MarkdownAction.bold, .italic, .strikethrough, .bulletList, .numberedList, .taskList, .quote,
                        .inlineCode, .codeBlock, .link, .image, .table, .horizontalRule] {
             XCTAssertTrue(ids.contains(ToolbarController.identifier(for: action)), "missing \(action)")
         }
@@ -70,34 +70,6 @@ final class ToolbarTests: XCTestCase {
         for item in toolbar.items where item.action == #selector(DocumentWindowController.applyMarkdownAction(_:)) {
             XCTAssertNotNil(item.image, "\(item.itemIdentifier) has no SF Symbol")
         }
-    }
-
-    func testTextColorMenuAppliesReplacesAndRemoves() async throws {
-        let controller = try await openWindow("color.md", "word")
-        let textView = try XCTUnwrap(controller.editorTextView)
-        let toolbarItem = try XCTUnwrap(controller.window?.toolbar?.items.first { $0.itemIdentifier == ToolbarController.textColorItem } as? NSMenuToolbarItem)
-        XCTAssertEqual(toolbarItem.menu.items.filter { $0.representedObject != nil }.count, TextColor.allCases.count)
-        let format = try XCTUnwrap(NSApp.mainMenu?.item(withTitle: "Format")?.submenu)
-        let colors = try XCTUnwrap(format.item(withTitle: "Text Color")?.submenu)
-        let red = try XCTUnwrap(colors.item(withTitle: "Red")), blue = try XCTUnwrap(colors.item(withTitle: "Blue"))
-        let remove = try XCTUnwrap(colors.item(withTitle: "Remove Color"))
-        XCTAssertTrue(controller.validateMenuItem(red))
-
-        textView.setSelectedRange(NSRange(location: 0, length: 4))
-        asOneEvent(controller) { controller.applyTextColor(red) }
-        XCTAssertEqual(textView.string, "<span style=\"color: #e5484d\">word</span>")
-        asOneEvent(controller) { controller.applyTextColor(blue) }
-        XCTAssertEqual(textView.string, "<span style=\"color: #0090ff\">word</span>")
-        asOneEvent(controller) { controller.applyTextColor(remove) }
-        XCTAssertEqual(textView.string, "word")
-        controller.markdownDocument?.undoManager?.undo()
-        XCTAssertEqual(textView.string, "<span style=\"color: #0090ff\">word</span>", "each color change is one undo step")
-    }
-
-    func testTextColorDisabledForPlainText() async throws {
-        let controller = try await openWindow("color.txt", "x")
-        let red = try XCTUnwrap(NSApp.mainMenu?.item(withTitle: "Format")?.submenu?.item(withTitle: "Text Color")?.submenu?.item(withTitle: "Red"))
-        XCTAssertFalse(controller.validateMenuItem(red))
     }
 
     func testToolbarLayoutControlFollowsLayout() async throws {

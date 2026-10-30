@@ -7,7 +7,8 @@ import AppKit
 /// flips everything after it in or out of a code block.
 final class MarkdownHighlighter: NSObject, NSTextStorageDelegate {
     private weak var textStorage: NSTextStorage?
-    private var fenceLineStarts: [Int] = []
+    /// UTF-16 offsets of the code-fence lines, ascending.
+    private(set) var fenceLineStarts: [Int] = []
     private var isApplying = false
 
     var isEnabled: Bool {
@@ -43,16 +44,29 @@ final class MarkdownHighlighter: NSObject, NSTextStorageDelegate {
                      range editedRange: NSRange, changeInLength delta: Int) {
         guard editedMask.contains(.editedCharacters), !isApplying else { return }
         let string = textStorage.string as NSString
-        let newFences = Self.fenceLineStarts(in: string)
-        let paragraphs = string.paragraphRange(for: editedRange)
-        let touchesFence = newFences.contains { NSLocationInRange($0, paragraphs) || $0 == NSMaxRange(paragraphs) }
-        let fencesChanged = newFences.count != fenceLineStarts.count || touchesFence
-        fenceLineStarts = newFences
-        if fencesChanged {
+        // One character past the edit: Return in mid-line ends the edit at a line
+        // break, and the text pushed onto the new line needs tinting too.
+        let reach = NSRange(location: editedRange.location,
+                            length: min(editedRange.length + 1, string.length - editedRange.location))
+        let paragraphs = string.paragraphRange(for: reach)
+        if updateFences(editedParagraphs: paragraphs, delta: delta, in: string) {
             apply(to: NSRange(location: 0, length: string.length), in: textStorage)
         } else {
             apply(to: paragraphs, in: textStorage)
         }
+    }
+
+    /// Keeps the fence list current by rescanning only the edited paragraphs; fences
+    /// after them just shift. Returns true if the text after the edit flipped in or
+    /// out of a code block, which only an odd change in the number of fences can do.
+    private func updateFences(editedParagraphs paragraphs: NSRange, delta: Int, in string: NSString) -> Bool {
+        let oldEnd = NSMaxRange(paragraphs) - delta
+        let before = fenceLineStarts.prefix { $0 < paragraphs.location }
+        let after = fenceLineStarts.drop { $0 < oldEnd }
+        let removed = fenceLineStarts[before.endIndex..<after.startIndex]
+        let found = Self.fenceLineStarts(in: string, range: paragraphs)
+        fenceLineStarts = Array(before) + found + after.map { $0 + delta }
+        return (found.count - removed.count) % 2 != 0
     }
 
     // MARK: - Highlighting
@@ -74,46 +88,50 @@ final class MarkdownHighlighter: NSObject, NSTextStorageDelegate {
         storage.setAttributes(EditorStyle.baseAttributes(size: size), range: range)
         guard isEnabled else { return }
 
-        let string = storage.string as NSString
+        // One copy of just this range. Converting the storage's whole string per
+        // line made tinting cost grow with the document instead of the edit.
+        let text = (storage.string as NSString).substring(with: range)
+        let shift = range.location
         let bold = EditorStyle.boldFont(size: size)
         let italic = NSFontManager.shared.convert(EditorStyle.font(size: size), toHaveTrait: .italicFontMask)
         let boldItalic = NSFontManager.shared.convert(bold, toHaveTrait: .italicFontMask)
-        let color = { (r: NSRange, c: NSColor) in storage.addAttribute(.foregroundColor, value: c, range: r) }
-        let font = { (r: NSRange, f: NSFont) in storage.addAttribute(.font, value: f, range: r) }
+        let inStorage = { (r: NSRange) in NSRange(location: r.location + shift, length: r.length) }
+        let color = { (r: NSRange, c: NSColor) in storage.addAttribute(.foregroundColor, value: c, range: inStorage(r)) }
+        let font = { (r: NSRange, f: NSFont) in storage.addAttribute(.font, value: f, range: inStorage(r)) }
 
         // Line-level constructs, skipping fenced code.
-        string.enumerateSubstrings(in: range, options: [.byLines, .substringNotRequired]) { _, line, _, _ in
-            if self.isInFencedBlock(line.location) {
+        let whole = NSRange(location: 0, length: (text as NSString).length)
+        (text as NSString).enumerateSubstrings(in: whole, options: [.byLines, .substringNotRequired]) { _, line, _, _ in
+            if self.isInFencedBlock(line.location + shift) {
                 color(line, Palette.code)
                 return
             }
-            if let m = Self.heading.firstMatch(in: string as String, range: line) {
+            if let m = Self.heading.firstMatch(in: text, range: line) {
                 color(m.range, Palette.heading)
                 font(m.range, bold)
                 color(m.range(at: 1), Palette.marker)
                 return
             }
-            if let m = Self.rule.firstMatch(in: string as String, range: line) {
+            if let m = Self.rule.firstMatch(in: text, range: line) {
                 color(m.range, Palette.rule)
                 return
             }
-            if let m = Self.quote.firstMatch(in: string as String, range: line) {
+            if let m = Self.quote.firstMatch(in: text, range: line) {
                 color(line, Palette.quote)
                 color(m.range, Palette.quoteMarker)
             }
-            if let m = Self.listMarker.firstMatch(in: string as String, range: line) {
+            if let m = Self.listMarker.firstMatch(in: text, range: line) {
                 color(m.range(at: 1), Palette.listMarker)
                 if m.range(at: 2).location != NSNotFound { color(m.range(at: 2), Palette.listMarker) }
             }
-            self.applyInline(in: line, string: string, color: color, font: font,
+            self.applyInline(in: line, text: text, color: color, font: font,
                              bold: bold, italic: italic, boldItalic: boldItalic)
         }
     }
 
-    private func applyInline(in line: NSRange, string: NSString,
+    private func applyInline(in line: NSRange, text s: String,
                              color: (NSRange, NSColor) -> Void, font: (NSRange, NSFont) -> Void,
                              bold: NSFont, italic: NSFont, boldItalic: NSFont) {
-        let s = string as String
         for m in Self.boldItalic.matches(in: s, range: line) {
             font(m.range, boldItalic)
             color(m.range(at: 1), Palette.marker)
@@ -139,14 +157,6 @@ final class MarkdownHighlighter: NSObject, NSTextStorageDelegate {
         for m in Self.bareURL.matches(in: s, range: line) {
             color(m.range, Palette.link)
         }
-        // Inline HTML (underline, highlight, text color): dim the tags like other
-        // markers, and show colored text in its own color.
-        for m in MarkdownCommands.colorSpan.matches(in: s, range: line) {
-            if let value = NSColor(hexString: string.substring(with: m.range(at: 1))) { color(m.range(at: 2), value) }
-        }
-        for m in Self.htmlTag.matches(in: s, range: line) {
-            color(m.range, Palette.marker)
-        }
         // Code last: nothing inside a code span is emphasis.
         for m in Self.inlineCode.matches(in: s, range: line) {
             font(m.range, EditorStyle.font(size: Preferences.editorFontSize))
@@ -159,34 +169,33 @@ final class MarkdownHighlighter: NSObject, NSTextStorageDelegate {
     /// Fence lines pair up as open/close; an unclosed fence runs to the end.
     /// Fence lines themselves count as part of their block.
     private func isInFencedBlock(_ lineStart: Int) -> Bool {
-        var i = 0
-        while i < fenceLineStarts.count {
-            if lineStart < fenceLineStarts[i] { return false }
-            guard i + 1 < fenceLineStarts.count else { return true }
-            if lineStart <= fenceLineStarts[i + 1] { return true }
-            i += 2
+        // How many fences start at or before this line (binary search: this runs per line).
+        var low = 0, high = fenceLineStarts.count
+        while low < high {
+            let mid = (low + high) / 2
+            if fenceLineStarts[mid] <= lineStart { low = mid + 1 } else { high = mid }
         }
-        return false
+        // Odd: an open fence is unclosed here. Even: inside only on the closing line itself.
+        return low % 2 == 1 || (low > 0 && fenceLineStarts[low - 1] == lineStart)
     }
 
-    static func fenceLineStarts(in s: NSString) -> [Int] {
-        var starts: [Int] = []
+    /// Starts of the fence lines (up to 3 spaces, then ``` or ~~~) in `range`, ascending.
+    static func fenceLineStarts(in s: NSString, range: NSRange? = nil) -> [Int] {
+        let range = range ?? NSRange(location: 0, length: s.length)
+        var starts = Set<Int>()
         for fence in ["```", "~~~"] {
-            var search = NSRange(location: 0, length: s.length)
-            while true {
+            var search = range
+            while search.length > 0 {
                 let found = s.range(of: fence, options: [], range: search)
                 if found.location == NSNotFound { break }
-                let lineStart = s.lineRange(for: NSRange(location: found.location, length: 0)).location
-                let prefix = s.substring(with: NSRange(location: lineStart, length: found.location - lineStart))
-                if prefix.allSatisfy({ $0 == " " }) && prefix.count <= 3, starts.last != lineStart {
-                    starts.append(lineStart)
-                }
-                let next = s.lineRange(for: found)
-                search = NSRange(location: NSMaxRange(next), length: s.length - NSMaxRange(next))
-                if search.length <= 0 { break }
+                let line = s.lineRange(for: NSRange(location: found.location, length: 0))
+                let prefix = s.substring(with: NSRange(location: line.location, length: found.location - line.location))
+                if prefix.count <= 3, prefix.allSatisfy({ $0 == " " }) { starts.insert(line.location) }
+                let next = min(NSMaxRange(line), NSMaxRange(range))
+                search = NSRange(location: next, length: NSMaxRange(range) - next)
             }
         }
-        return Array(Set(starts)).sorted()
+        return starts.sorted()
     }
 
     // MARK: - Patterns
@@ -206,5 +215,4 @@ final class MarkdownHighlighter: NSObject, NSTextStorageDelegate {
     static let link = regex(#"!?(\[[^\]\n]*\])(\([^)\n]*\))"#)
     static let bareURL = regex(#"(?<![(<\[])\b(?:https?://|www\.)[^\s<>()]+"#)
     static let inlineCode = regex(#"(`+)[^`\n]+?\1"#)
-    static let htmlTag = regex(#"</?(?:u|mark|span|kbd|br|sup|sub|ins|del|small|details|summary)\b[^>\n]*>"#, .caseInsensitive)
 }

@@ -76,13 +76,58 @@ final class HighlighterTests: XCTestCase {
         _ = h
     }
 
-    func testInlineHTMLTagsDimmedAndColorShown() {
-        let (s, h) = highlighted("a <u>b</u> <span style=\"color: #30a46c\">green</span>")
-        XCTAssertEqual(color(s, at: 2), MarkdownHighlighter.Palette.marker)
-        XCTAssertEqual(color(s, at: 5), .textColor)
-        let green = (s.string as NSString).range(of: "green").location
-        XCTAssertEqual(color(s, at: green), NSColor(hexString: "#30a46c"))
-        XCTAssertEqual(color(s, at: green - 1), MarkdownHighlighter.Palette.marker)
+    func testTintLandsInTheRightPlaceFarIntoTheDocument() {
+        let (s, h) = highlighted("😀 emoji first\n\nplain\n\nlast line")
+        let at = (s.string as NSString).range(of: "plain").location
+        s.replaceCharacters(in: NSRange(location: at, length: 5), with: "**bold** `code`")
+        let bold = (s.string as NSString).range(of: "bold").location
+        let code = (s.string as NSString).range(of: "code").location
+        XCTAssertTrue(isBold(s, at: bold))
+        XCTAssertFalse(isBold(s, at: bold - 3), "the blank line before it stays plain")
+        XCTAssertEqual(color(s, at: code), MarkdownHighlighter.Palette.code)
+        XCTAssertEqual(color(s, at: s.length - 1), .textColor)
+        _ = h
+    }
+
+    /// The incremental fence list must always match a full scan.
+    func testFenceTrackingMatchesFullScanThroughEdits() {
+        let (s, h) = highlighted("intro\n```\ncode\n```\ntext\n~~~\nmore\n~~~\nend")
+        var generator = SystemRandomNumberGenerator()
+        let snippets = ["x", "\n", "```\n", "\n```", "~~~\n", "  ```swift\n", "`", "- item\n", "😀"]
+        for step in 0..<400 {
+            let length = s.length
+            let location = Int.random(in: 0...length, using: &generator)
+            let removal = step % 3 == 0 ? Int.random(in: 0...min(12, length - location), using: &generator) : 0
+            let insertion = step % 3 == 2 ? "" : snippets.randomElement(using: &generator)!
+            let safe = (s.string as NSString).rangeOfComposedCharacterSequences(for: NSRange(location: location, length: removal))
+            s.replaceCharacters(in: safe, with: insertion)
+            XCTAssertEqual(h.fenceLineStarts, MarkdownHighlighter.fenceLineStarts(in: s.string as NSString), "step \(step)")
+        }
+    }
+
+    func testReturnInMidLineTintsTheNewLine() {
+        let (s, h) = highlighted("text# Heading")
+        s.replaceCharacters(in: NSRange(location: 4, length: 0), with: "\n")
+        XCTAssertEqual(color(s, at: 8), MarkdownHighlighter.Palette.heading)
+        XCTAssertTrue(isBold(s, at: 8))
+        _ = h
+    }
+
+    func testTypingOnTheLineAboveAClosingFenceStaysCode() {
+        let (s, h) = highlighted("```\nabc\n```\n# after")
+        s.replaceCharacters(in: NSRange(location: 7, length: 0), with: "d")
+        XCTAssertEqual(color(s, at: 5), MarkdownHighlighter.Palette.code)
+        let after = (s.string as NSString).range(of: "after").location
+        XCTAssertEqual(color(s, at: after), MarkdownHighlighter.Palette.heading)
+        _ = h
+    }
+
+    func testAddingAMatchedPairOfFencesTintsBetweenThem() {
+        let (s, h) = highlighted("# one\n# two\n# three")
+        s.replaceCharacters(in: NSRange(location: 0, length: 0), with: "```\nx\n```\n")
+        let one = (s.string as NSString).range(of: "one").location
+        XCTAssertEqual(color(s, at: 4), MarkdownHighlighter.Palette.code)
+        XCTAssertEqual(color(s, at: one), MarkdownHighlighter.Palette.heading)
         _ = h
     }
 

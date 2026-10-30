@@ -187,7 +187,13 @@ final class AppFeaturesTests: XCTestCase {
 
     func testSettingsWindowControlsWritePreferences() async throws {
         let savedSize = Preferences.editorFontSize, savedLayout = Preferences.defaultLayout, savedTheme = Preferences.previewTheme
-        defer { Preferences.editorFontSize = savedSize; Preferences.defaultLayout = savedLayout; Preferences.previewTheme = savedTheme }
+        defer {
+            Preferences.editorFontSize = savedSize
+            Preferences.defaultLayout = savedLayout
+            Preferences.previewTheme = savedTheme
+            Preferences.previewZoom = 1
+            Preferences.scalePreviewToWindow = false
+        }
 
         let settings = SettingsWindowController.shared
         settings.showWindow(nil)
@@ -196,6 +202,14 @@ final class AppFeaturesTests: XCTestCase {
         settings.sizeStepperChanged(controls.stepper)
         XCTAssertEqual(Preferences.editorFontSize, 17)
         XCTAssertEqual(controls.size.integerValue, 17)
+
+        controls.zoom.doubleValue = 1.4
+        settings.zoomStepperChanged(controls.zoom)
+        XCTAssertEqual(Preferences.previewZoom, 1.4)
+        XCTAssertEqual(controls.zoomLabel.stringValue, "140%")
+        controls.scale.state = .on
+        settings.scaleCheckboxChanged(controls.scale)
+        XCTAssertTrue(Preferences.scalePreviewToWindow)
 
         controls.layout.selectItem(at: 1)
         settings.layoutChanged(controls.layout)

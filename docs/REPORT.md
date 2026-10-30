@@ -1,22 +1,22 @@
 # Marked: Project and Performance Report
 
-Measured October 30, 2026, on the Release build of Marked 1.0 installed in `/Applications`, unless a section says otherwise.
+Measured October 30, 2026, on the Release build of Marked installed in `/Applications`, with nobody using the Mac, unless a section says otherwise.
 
 ## Summary
 
-Marked meets all four of its lightness targets by a wide margin and handles its design size, a 5,000-line document, comfortably. A typical launch takes about 0.4 seconds, the app idles at essentially 0% CPU, it makes no network connections, and the bundle is 1.8 MB.
+Marked meets all of its lightness targets by a wide margin. A launch takes about 0.4 seconds, the app idled at 0.0% CPU in every sample, it makes no network connections, and the bundle is 1.9 MB.
 
-Performance holds up to about 20,000 lines. Above that, one real weakness appears: editor tinting slows down faster than documents grow. A 50,000-line file takes about 5 seconds to open, and each keystroke costs about 14 ms. No target covers files that size, but it's the first thing to fix if very large files matter.
+This run also shows the large-file problem from the first report is fixed. Opening a 50,000-line file went from 5.2 seconds to 0.6 seconds, and each keystroke's tinting went from 13.3 ms to 0.2 ms. Costs now grow in step with file size.
 
 Of the 19 acceptance tests, 16 pass and 3 are only partly verified because they need a person at the keyboard.
 
 | Target | Goal | Result | Status |
 | --- | --- | --- | --- |
-| Launch to window | Under ~1 s | 421 ms median | Met, with one slow outlier |
-| Idle CPU with a document open | ~0% | 0.0% in most samples | Met |
+| Launch to window | Under ~1 s | 412 ms median, 550 ms slowest | Met |
+| Idle CPU with a document open | ~0% | 0.0% in all 30 samples | Met |
 | Network connections | None | 0 sockets, no traffic | Met |
-| App bundle size | Under ~15 MB | 1.8 MB | Met |
-| Typing in a 5,000-line file | No visible lag | 1.7 ms per edit | Met |
+| App bundle size | Under ~15 MB | 1.9 MB | Met |
+| Typing in a 5,000-line file | No visible lag | 0.12 ms per edit | Met |
 
 ## Test setup
 
@@ -32,17 +32,14 @@ The Debug numbers should run slower than Release, so treat them as conservative.
 
 ## Launch
 
-Time from running `open` to the first on-screen window, 11 launches per file, with Marked quit in between.
+Time from running `open` to the first on-screen window, 21 launches per file, with Marked quit in between.
 
 | Document | Fastest | Median | Slowest |
 | --- | --- | --- | --- |
-| Small file (under 1 KB) | 365 ms | 421 ms | 2,081 ms |
-| 5,000 lines (83 KB) | 448 ms | 473 ms | 502 ms |
+| Small file (under 1 KB) | 387 ms | 412 ms | 550 ms |
+| 5,000 lines (83 KB) | 441 ms | 455 ms | 502 ms |
 
-Two slow launches need explaining:
-
-- **The 2,081 ms outlier:** one of the 22 launches. The cause is unknown, and it did not recur.
-- **The first launch after installing on October 25:** this took over 10 seconds. The October 30 reinstall did not repeat it, with the first launch at 397 ms, so the earlier explanation of a one-time macOS check is unconfirmed.
+The first report had one 2,081 ms launch, taken while the Mac was in active use. It didn't recur in these 42 launches with the Mac left alone, which fits that explanation.
 
 ## Idle CPU
 
@@ -50,8 +47,8 @@ Sampled every 2 seconds for 30 seconds, starting 12 seconds after launch.
 
 | Document | Samples at 0.0% | Highest sample |
 | --- | --- | --- |
-| Small file | 14 of 15 | 0.3% |
-| 5,000 lines | 14 of 15 | 4.6% |
+| Small file | 15 of 15 | 0.0% |
+| 5,000 lines | 15 of 15 | 0.0% |
 
 Marked's WebKit helper processes also showed 0.0% at the end of each run.
 
@@ -61,11 +58,11 @@ Physical footprint after launch, with the document open and idle.
 
 | Process | Small file | 5,000 lines |
 | --- | --- | --- |
-| Marked | 71 MB | 71 MB |
-| WebKit content | 20 MB | 59 MB |
+| Marked | 53 MB | 56 MB |
+| WebKit content | 19 MB | 59 MB |
 | WebKit GPU | 11 MB | 12 MB |
 | WebKit networking | 5 MB | 5 MB |
-| **Total** | **107 MB** | **147 MB** |
+| **Total** | **88 MB** | **132 MB** |
 
 Each open window adds its own preview page, so memory will rise with more documents open. That was not measured.
 
@@ -82,10 +79,10 @@ This holds by design. The preview runs under a rule list that blocks every load 
 
 | Part | Size |
 | --- | --- |
-| Executable (arm64 and x86_64) | 1.5 MB |
+| Executable (arm64 and x86_64) | 1.6 MB |
 | App icon | 284 KB |
 | Preview HTML and CSS | 12 KB |
-| **Installed bundle** | **1.8 MB** |
+| **Installed bundle** | **1.9 MB** |
 
 ## Editing and rendering at scale
 
@@ -94,48 +91,66 @@ Test documents repeat a mix of headings, paragraphs, lists, tasks, tables, code 
 | Measurement | 1,000 lines | 5,000 lines | 20,000 lines | 50,000 lines |
 | --- | --- | --- | --- | --- |
 | File size | 17 KB | 83 KB | 331 KB | 827 KB |
-| Open to window | 154 | 214 | 1,028 | 5,220 |
-| Open to rendered preview | 283 | 266 | 1,146 | 5,468 |
-| Markdown render (background) | 0.9 | 4.8 | 16.8 | 41.2 |
-| Word and line counts (background) | 0.6 | 2.7 | 10.4 | 26.3 |
-| Tint one keystroke | 0.33 | 1.55 | 5.63 | 13.33 |
-| Full edit on the main thread | 0.47 | 1.74 | 6.07 | 13.80 |
-| Tint whole document | 8.8 | 51 | 451 | 2,463 |
-| Add a code fence | 1.9 | 27 | 364 | 2,274 |
+| Open to window | 175 | 157 | 285 | 583 |
+| Open to rendered preview | 213 | 207 | 396 | 822 |
+| Markdown render (background) | 0.9 | 5.2 | 18.0 | 41.8 |
+| Word and line counts (background) | 0.6 | 2.6 | 10.7 | 26.5 |
+| Tint one keystroke | 0.04 | 0.05 | 0.10 | 0.21 |
+| Full edit on the main thread | 0.12 | 0.12 | 0.19 | 0.30 |
+| Tint whole document | 7.0 | 24 | 95 | 227 |
+| Add a code fence | 0.7 | 3.0 | 13 | 34 |
+| Preview scroll moves editor | 2.1 | 6.3 | 14.7 | 35.4 |
 
-The 1,000-line open-to-preview time is higher than the 5,000-line time because it was the first window of the run and included starting WebKit.
+The 1,000-line open times are higher than the 5,000-line times because that was the first window of the run and included starting WebKit.
 
-At 60 Hz, one frame lasts 16.7 ms. A full edit stays within that even at 50,000 lines, although at that size it uses most of the frame before the window has drawn anything. At 5,000 lines a keystroke uses about a tenth of the frame.
+At 60 Hz, one frame lasts 16.7 ms. Typing stays far inside that at every size tested. A preview update appears about 214 ms after typing stops at 5,000 lines, including the intentional 150 ms pause that waits for typing to settle. Exporting a 1,500-line document to PDF produced 45 pages.
 
-A preview update appears about 217 ms after typing stops at 5,000 lines, including the intentional 150 ms pause that waits for typing to settle. Exporting a 1,500-line document to PDF produced 45 pages.
+### Before and after the tinting fix
+
+| Measurement at 50,000 lines | Before | After |
+| --- | --- | --- |
+| Open to window | 5,220 ms | 583 ms |
+| Tint one keystroke | 13.3 ms | 0.21 ms |
+| Tint whole document | 2,463 ms | 227 ms |
+| Add a code fence | 2,274 ms | 34 ms |
+
+Timing each part showed two causes. Every keystroke rescanned the whole document for code fences, and checking whether a line was inside a code block walked the full fence list, once per line. Marked now updates the fence list only around the edit and looks lines up with a binary search.
+
+The first report guessed at a different cause, repeated string conversion. Fixing that alone made little difference, and the timing above replaced that guess.
 
 ## Findings
 
-### Tinting is the bottleneck in large files
+- **Typing and opening:** no longer a concern at any size tested.
+- **Preview scrolling in very large files:** moving the editor from the preview takes about 35 ms at 50,000 lines, roughly two frames, so the editor may visibly trail the preview at that size. At 5,000 lines it takes about 6 ms. The cost is exact text layout up to the target line.
+- **Everything else:** rendering and word counts run off the main thread, scale linearly, and stay under 50 ms at 50,000 lines.
 
-Two costs grow with document size:
+## What came from MarkEdit
 
-- **Full tinting scales worse than the document.** Ten times the lines (5,000 to 50,000) takes about 48 times as long. Opening a file and editing a code fence both pay this cost, on the main thread. Typing three backticks in a 50,000-line file freezes the window for over 2 seconds.
-- **Keystroke tinting isn't constant.** It re-tints only the edited paragraph, yet the cost still grows with the size of the document.
+[MarkEdit](https://github.com/MarkEdit-app/MarkEdit) is an MIT-licensed Mac Markdown editor. Its editor runs CodeMirror in a web view, while Marked uses a native text view, so none of its editor code applies and none was copied.
 
-The likely causes, from reading `MarkdownHighlighter.swift` but not confirmed by profiling, are converting the full text storage string for each regex call and rescanning the whole document for code fences on every edit.
+| MarkEdit idea | What Marked did |
+| --- | --- |
+| Pinch to zoom, 10% zoom steps, menu items that disable at the limits | Adopted, using page zoom so text re-wraps to fit the pane |
+| Doing work only on the text that changed or is visible | Applied to code-fence tracking, which produced the speedup above |
+| README with icon and screenshots, plain top-level layout | Adopted |
 
-This doesn't affect files around the 5,000-line design size, where the worst case is a 51 ms tint. Marked is usable up to about 20,000 lines, and fence edits become a noticeable pause of about 0.4 seconds at that size.
+Ideas from its source folders that Marked could add later, not evaluated in depth:
 
-### Everything else holds up
-
-Markdown rendering and word counts run off the main thread and scale linearly. Even at 50,000 lines they take under 50 ms, so they aren't a concern.
+- A Quick Look extension, to preview Markdown files in Finder
+- A table of contents for jumping between headings
+- Front matter support at the top of files
+- Word completion while typing
 
 ## Quality
 
 | Item | Value |
 | --- | --- |
-| App code | 23 Swift files, about 3,100 lines |
-| Test code | 12 Swift files, about 1,700 lines |
-| Tests | 202, all passing |
+| App code | 22 Swift files, about 3,200 lines |
+| Test code | 12 Swift files, about 1,800 lines |
+| Tests | 204, all passing |
 | Third-party dependencies | 1 (swift-cmark) |
 
-Tests run inside the real app and cover Markdown commands, rendering, file encodings, documents, the preview, the toolbar, printing, external file changes and state restoration. Typing tests use real key events.
+Tests run inside the real app and cover Markdown commands, rendering, file encodings, documents, the preview, two-way scrolling, zoom, the toolbar, printing, external file changes and state restoration. Typing tests use real key events. A randomized test checks the new fence tracking against a full scan across 400 edits.
 
 ### Acceptance tests
 
@@ -158,7 +173,8 @@ Details are in [PROGRESS.md](PROGRESS.md).
 ## Known limitations
 
 - **Tested on one setup:** the app targets macOS 14 but has only been run on macOS 27.0.1 on Apple silicon. The Intel half of the executable has never been run.
-- **Inline HTML tools:** underline, highlight and text color write HTML tags, which other Markdown apps may strip or display as text.
+- **Scroll sync is approximate:** it matches rendered blocks to source lines, so the panes can sit a line or so apart, especially inside long paragraphs.
+- **Zoom is app-wide:** zoom settings apply to every window rather than each document.
 - **Keyboard layouts:** ⇧⌘8, ⇧⌘7, ⇧⌘. and ⇧⌘- assume a US layout.
 - **No sandbox:** Marked is unsandboxed so previews can load relative images from anywhere. A document can therefore display any local image it references, though it can't run scripts or send anything over the network.
 - **Tests touch real app data:** the suite runs as the real app, so test files can appear in Marked's Open Recent list. Settings changed during tests are restored afterward.

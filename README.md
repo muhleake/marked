@@ -1,4 +1,8 @@
-# Marked
+<p align="center"><img src="docs/images/icon.png" width="128" alt="Marked app icon"></p>
+
+<h1 align="center">Marked</h1>
+
+<p align="center">A small, fast, native Markdown editor for macOS.</p>
 
 Marked is a native macOS Markdown editor: raw text on the left, a live GitHub-flavored preview on the right, and a formatting toolbar on top. It opens, edits and creates `.md`, `.markdown`, `.mdown` and `.txt` files, and nothing else.
 
@@ -10,6 +14,8 @@ Marked isn't affiliated with the commercial Marked 2 app. It has no accounts, te
 
 - **Native document handling:** one window per document, tabs, autosave, Versions, Revert To, Duplicate, Rename, Move To, Open Recent, Find & Replace, spell check, print, and window restoration on relaunch.
 - **Live preview:** tables, task lists, strikethrough, autolinks, footnotes, code blocks and relative images. Follows light and dark mode. Switch between Split, Editor Only and Preview Only with ⌥⌘P.
+- **Two-way scroll sync:** scroll either pane and the other follows.
+- **Zoom:** ⌘+ and ⌘− scale both panes. Preview Zoom scales only the preview, and Scale to Window sizes it to its pane. Pinch works in the preview too.
 - **Formatting toolbar:** every button works on the selection, toggles off, and undoes in one step. Shortcuts are listed below.
 - **Editor:** color and weight tinting that never hides characters, list continuation, Tab and Shift-Tab indenting, adjustable font size, and a word, character and line count.
 - **Plain text:** `.txt` files open editor-only. View ▸ Treat as Markdown turns the preview on for that window without renaming the file.
@@ -52,17 +58,15 @@ To make Marked the default app for a file type, use Finder: Get Info on a file �
 | --- | --- | --- | --- |
 | Bold | ⌘B | Bulleted list | ⇧⌘8 |
 | Italic | ⌘I | Numbered list | ⇧⌘7 |
-| Underline | ⌘U | Task list | ⇧⌘T |
-| Strikethrough | ⇧⌘X | Quote | ⇧⌘. |
-| Highlight | ⇧⌘H | Inline code | ⌥⌘C |
-| Heading 1–6 | ⌘1–⌘6 | Code block | ⇧⌘C |
-| Link | ⌘K | Table | ⌥⌘T |
-| Image | ⇧⌘I | Horizontal rule | ⇧⌘- |
-| Cycle layout | ⌥⌘P | Bigger / smaller / default text | ⌘+ / ⌘− / ⌘0 |
+| Strikethrough | ⇧⌘X | Task list | ⇧⌘T |
+| Heading 1–6 | ⌘1–⌘6 | Quote | ⇧⌘. |
+| Link | ⌘K | Inline code | ⌥⌘C |
+| Image | ⇧⌘I | Code block | ⇧⌘C |
+| Table | ⌥⌘T | Horizontal rule | ⇧⌘- |
+| Cycle layout | ⌥⌘P | Zoom both panes | ⌘+ / ⌘− / ⌘0 |
+| Editor text size | ⌃⌘= / ⌃⌘- / ⌃⌘0 | Zoom preview only | ⌥⌘= / ⌥⌘- / ⌥⌘0 |
 
-Text color is in the toolbar and under Format ▸ Text Color. The ⇧⌘8, ⇧⌘7, ⇧⌘. and ⇧⌘- shortcuts assume a US keyboard layout.
-
-Markdown has no syntax for underline, highlight or text color, so those tools write inline HTML (`<u>`, `<mark>`, `<span style="color: …">`). Marked renders them, but other Markdown apps may strip them or show the tags.
+The ⇧⌘8, ⇧⌘7, ⇧⌘. and ⇧⌘- shortcuts assume a US keyboard layout.
 
 ## Project layout
 
@@ -84,6 +88,7 @@ Makefile       Build, test, run and install
 
 ## Documentation
 
+- [Changelog](CHANGELOG.md)
 - [Project and performance report](docs/REPORT.md)
 - [Original spec](docs/SPEC.md)
 - [Build log and acceptance results](docs/PROGRESS.md)
@@ -92,6 +97,10 @@ Makefile       Build, test, run and install
 ## Dependencies
 
 The only third-party dependency is [swift-cmark](https://github.com/apple/swift-cmark), Apple's fork of cmark-gfm, which is BSD-2-Clause licensed. It's pinned to a specific revision in `project.yml`.
+
+## Acknowledgments
+
+The zoom approach and the idea of limiting work to what changed came from studying [MarkEdit](https://github.com/MarkEdit-app/MarkEdit), an MIT-licensed Markdown editor. No code was copied.
 
 ## License
 

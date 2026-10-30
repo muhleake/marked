@@ -8,9 +8,12 @@ final class SettingsWindowController: NSWindowController {
     private let sizeStepper = NSStepper()
     private let layoutPopUp = NSPopUpButton()
     private let themePopUp = NSPopUpButton()
+    private let zoomField = NSTextField(labelWithString: "")
+    private let zoomStepper = NSStepper()
+    private let scaleCheckbox = NSButton(checkboxWithTitle: "Scale preview to window", target: nil, action: nil)
 
     private init() {
-        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 420, height: 160),
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 420, height: 220),
                               styleMask: [.titled, .closable], backing: .buffered, defer: true)
         window.title = "Settings"
         window.isRestorable = false
@@ -18,7 +21,9 @@ final class SettingsWindowController: NSWindowController {
         buildContent()
         refresh()
         window.center()
-        NotificationCenter.default.addObserver(self, selector: #selector(refresh), name: .editorFontSizeDidChange, object: nil)
+        for name in [Notification.Name.editorFontSizeDidChange, .previewZoomDidChange] {
+            NotificationCenter.default.addObserver(self, selector: #selector(refresh), name: name, object: nil)
+        }
     }
 
     @available(*, unavailable)
@@ -52,6 +57,19 @@ final class SettingsWindowController: NSWindowController {
         themePopUp.target = self
         themePopUp.action = #selector(themeChanged(_:))
 
+        zoomStepper.minValue = Preferences.previewZoomRange.lowerBound
+        zoomStepper.maxValue = Preferences.previewZoomRange.upperBound
+        zoomStepper.increment = Preferences.previewZoomStep
+        zoomStepper.target = self
+        zoomStepper.action = #selector(zoomStepperChanged(_:))
+        zoomField.widthAnchor.constraint(equalToConstant: 44).isActive = true
+        zoomField.alignment = .right
+        let zoomRow = NSStackView(views: [zoomField, zoomStepper])
+        zoomRow.spacing = 4
+
+        scaleCheckbox.target = self
+        scaleCheckbox.action = #selector(scaleCheckboxChanged(_:))
+
         let note = NSTextField(wrappingLabelWithString: "Plain text (.txt) files always open editor-only; use View ▸ Treat as Markdown for a window.")
         note.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
         note.textColor = .secondaryLabelColor
@@ -60,6 +78,8 @@ final class SettingsWindowController: NSWindowController {
             [NSTextField(labelWithString: "Editor font size:"), sizeRow],
             [NSTextField(labelWithString: "Markdown files open in:"), layoutPopUp],
             [NSTextField(labelWithString: "Preview theme:"), themePopUp],
+            [NSTextField(labelWithString: "Preview zoom:"), zoomRow],
+            [NSGridCell.emptyContentView, scaleCheckbox],
         ])
         grid.column(at: 0).xPlacement = .trailing
         grid.rowAlignment = .firstBaseline
@@ -80,10 +100,16 @@ final class SettingsWindowController: NSWindowController {
         sizeStepper.integerValue = Int(Preferences.editorFontSize)
         layoutPopUp.selectItem(at: PreviewLayout.allCases.firstIndex(of: Preferences.defaultLayout) ?? 0)
         themePopUp.selectItem(at: Preferences.PreviewTheme.allCases.firstIndex(of: Preferences.previewTheme) ?? 0)
+        zoomField.stringValue = "\(Int((Preferences.previewZoom * 100).rounded()))%"
+        zoomStepper.doubleValue = Preferences.previewZoom
+        scaleCheckbox.state = Preferences.scalePreviewToWindow ? .on : .off
     }
 
     @objc func sizeFieldChanged(_ sender: NSTextField) { Preferences.editorFontSize = CGFloat(sender.integerValue) }
     @objc func sizeStepperChanged(_ sender: NSStepper) { Preferences.editorFontSize = CGFloat(sender.integerValue) }
+
+    @objc func zoomStepperChanged(_ sender: NSStepper) { Preferences.previewZoom = sender.doubleValue }
+    @objc func scaleCheckboxChanged(_ sender: NSButton) { Preferences.scalePreviewToWindow = sender.state == .on }
 
     @objc func layoutChanged(_ sender: NSPopUpButton) {
         Preferences.defaultLayout = PreviewLayout.allCases[max(0, sender.indexOfSelectedItem)]
@@ -94,7 +120,8 @@ final class SettingsWindowController: NSWindowController {
     }
 
     // Exposed for tests.
-    var controls: (size: NSTextField, stepper: NSStepper, layout: NSPopUpButton, theme: NSPopUpButton) {
-        (sizeField, sizeStepper, layoutPopUp, themePopUp)
+    var controls: (size: NSTextField, stepper: NSStepper, layout: NSPopUpButton, theme: NSPopUpButton,
+                   zoom: NSStepper, zoomLabel: NSTextField, scale: NSButton) {
+        (sizeField, sizeStepper, layoutPopUp, themePopUp, zoomStepper, zoomField, scaleCheckbox)
     }
 }

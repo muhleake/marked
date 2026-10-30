@@ -15,6 +15,8 @@ final class PreviewTests: XCTestCase {
     }
 
     override func tearDown() async throws {
+        Preferences.previewZoom = 1
+        Preferences.scalePreviewToWindow = false
         for doc in opened { doc.close() }
         opened.removeAll()
         try? FileManager.default.removeItem(at: tempDir)
@@ -82,7 +84,7 @@ final class PreviewTests: XCTestCase {
         try await waitFor(preview, "const i = document.querySelector('#content img'); return i.complete && i.naturalWidth === 0", equals: true)
     }
 
-    func testUnderlineHighlightAndColorRender() async throws {
+    func testInlineHTMLInExistingFilesStillRenders() async throws {
         let controller = try await openWindow("styled.md", "<u>under</u> <mark>marked</mark> <span style=\"color: #e5484d\">red</span>")
         let preview = controller.splitController.previewController
         try await waitFor(preview, "return getComputedStyle(document.querySelector('#content u')).textDecorationLine", equals: "underline")
@@ -179,6 +181,189 @@ final class PreviewTests: XCTestCase {
             try await Task.sleep(nanoseconds: 50_000_000)
         }
         XCTAssertEqual(heading, "Heading 151")
+    }
+
+    // MARK: - Preview → editor scroll sync
+
+    private func openLongDocument(_ name: String) async throws -> DocumentWindowController {
+        let text = (1...400).map { "## Heading \($0)\n\nParagraph \($0)." }.joined(separator: "\n\n")
+        let controller = try await openWindow(name, text)
+        controller.layout = .split
+        try await waitFor(controller.splitController.previewController,
+                          "return document.querySelectorAll('#content h2').length", equals: 400)
+        // Let the quiet period after the render pass, as it would for a person.
+        try await Task.sleep(nanoseconds: 400_000_000)
+        return controller
+    }
+
+    private func waitForEditorLine(_ editor: EditorViewController, near line: Double, accuracy: Double = 2,
+                                   file: StaticString = #filePath, lineNumber: UInt = #line) async throws {
+        let deadline = Date().addingTimeInterval(3)
+        var top = 0.0
+        while Date() < deadline {
+            top = editor.topVisibleSourceLine()
+            if abs(top - line) <= accuracy { return }
+            try await Task.sleep(nanoseconds: 30_000_000)
+        }
+        XCTFail("editor stayed at line \(top), expected about \(line)", file: file, line: lineNumber)
+    }
+
+    func testPreviewScrollMovesEditor() async throws {
+        let controller = try await openLongDocument("back.md")
+        let preview = controller.splitController.previewController
+        let editor = controller.splitController.editorController
+
+        // Heading 151 starts at source line 601.
+        _ = try await preview.evaluate("""
+            const h = Array.from(document.querySelectorAll('#content h2'))[150];
+            window.scrollTo(0, h.getBoundingClientRect().top + window.scrollY - 8);
+            return 1;
+            """)
+        try await waitForEditorLine(editor, near: 601)
+
+        // The editor's own scroll must not bounce back and move the preview.
+        let before = try await preview.evaluate("return window.scrollY") as? Double
+        try await Task.sleep(nanoseconds: 500_000_000)
+        let after = try await preview.evaluate("return window.scrollY") as? Double
+        XCTAssertEqual(before, after)
+    }
+
+    func testPreviewScrollToEndReachesEditorEnd() async throws {
+        let controller = try await openLongDocument("end.md")
+        let preview = controller.splitController.previewController
+        let editor = controller.splitController.editorController
+        _ = try await preview.evaluate("window.scrollTo(0, document.documentElement.scrollHeight); return 1")
+        let deadline = Date().addingTimeInterval(3)
+        while editor.topVisibleSourceLine() < 1000, Date() < deadline { try await Task.sleep(nanoseconds: 30_000_000) }
+        XCTAssertGreaterThan(editor.topVisibleSourceLine(), 1000, "the last line is about 1,199")
+    }
+
+    func testPreviewBackToTopReachesEditorTop() async throws {
+        let controller = try await openLongDocument("top.md")
+        let preview = controller.splitController.previewController
+        let editor = controller.splitController.editorController
+        _ = try await preview.evaluate("window.scrollTo(0, 5000); return 1")
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertGreaterThan(editor.topVisibleSourceLine(), 10)
+        _ = try await preview.evaluate("window.scrollTo(0, 0); return 1")
+        try await waitForEditorLine(editor, near: 1, accuracy: 0.5)
+    }
+
+    func testPreviewReUpdateWhileTypingDoesNotMoveEditor() async throws {
+        let controller = try await openLongDocument("typing.md")
+        let preview = controller.splitController.previewController
+        let editor = controller.splitController.editorController
+        _ = try await preview.evaluate("window.scrollTo(0, 3000); return 1")
+        try await Task.sleep(nanoseconds: 300_000_000)
+        let settled = editor.topVisibleSourceLine()
+
+        // A render replaces the page; that isn't the user scrolling.
+        let storage = try XCTUnwrap(controller.markdownDocument?.textStorage)
+        storage.replaceCharacters(in: NSRange(location: storage.length, length: 0), with: "\n\nMore.")
+        try await waitFor(preview, "return Array.from(document.querySelectorAll('#content p')).pop()?.textContent ?? ''", equals: "More.")
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertEqual(editor.topVisibleSourceLine(), settled, accuracy: 0.01)
+    }
+
+    func testEditorOnlyIgnoresPreviewScroll() async throws {
+        let controller = try await openLongDocument("hidden.md")
+        controller.layout = .editorOnly
+        controller.splitController.syncEditorScroll(toSourceLine: 500)
+        XCTAssertLessThan(controller.splitController.editorController.topVisibleSourceLine(), 2)
+    }
+
+    // MARK: - Zoom
+
+    func testPreviewZoomScalesAndReflows() async throws {
+        let controller = try await openWindow("zoom.md", String(repeating: "A long line of words that has to wrap. ", count: 40))
+        let preview = controller.splitController.previewController
+        let webView = try XCTUnwrap(preview.webView)
+        try await waitFor(preview, "return document.querySelector('#content p') ? 1 : 0", equals: 1)
+        XCTAssertTrue(webView.allowsMagnification, "pinch to zoom")
+
+        Preferences.previewZoom = 1.5
+        XCTAssertEqual(webView.pageZoom, 1.5, accuracy: 0.001)
+        // Text re-wraps instead of running off the side of the pane.
+        try await waitFor(preview, "return document.documentElement.scrollWidth <= document.documentElement.clientWidth", equals: true)
+
+        Preferences.previewZoom = 0.7
+        XCTAssertEqual(webView.pageZoom, 0.7, accuracy: 0.001)
+
+        webView.magnification = 2
+        Preferences.previewZoom = 1
+        XCTAssertEqual(webView.pageZoom, 1, accuracy: 0.001)
+        XCTAssertEqual(webView.magnification, 1, "Actual Size also clears a pinch")
+    }
+
+    func testPreviewZoomStaysInRangeOnWholePercents() {
+        Preferences.previewZoom = 1
+        for _ in 0..<3 { Preferences.previewZoom += Preferences.previewZoomStep }
+        XCTAssertEqual(Preferences.previewZoom, 1.3)
+        Preferences.previewZoom = 99
+        XCTAssertEqual(Preferences.previewZoom, Preferences.previewZoomRange.upperBound)
+        Preferences.previewZoom = 0.01
+        XCTAssertEqual(Preferences.previewZoom, Preferences.previewZoomRange.lowerBound)
+    }
+
+    func testScaleToWindowFollowsPaneWidth() async throws {
+        let controller = try await openWindow("scale.md", "# x")
+        controller.layout = .split
+        let preview = controller.splitController.previewController
+        let webView = try XCTUnwrap(preview.webView)
+        Preferences.scalePreviewToWindow = true
+        let expected = { Double(preview.view.bounds.width / PreviewViewController.scaleReferenceWidth).clamped(to: 0.5...1.5) }
+        XCTAssertEqual(webView.pageZoom, expected(), accuracy: 0.01)
+
+        let narrow = try XCTUnwrap(controller.window)
+        narrow.setContentSize(NSSize(width: 700, height: 500))
+        narrow.layoutIfNeeded()
+        preview.view.layoutSubtreeIfNeeded()
+        preview.viewDidLayout()
+        XCTAssertLessThan(preview.view.bounds.width, 640)
+        XCTAssertEqual(webView.pageZoom, expected(), accuracy: 0.01)
+
+        Preferences.scalePreviewToWindow = false
+        XCTAssertEqual(webView.pageZoom, 1, accuracy: 0.001)
+    }
+
+    func testViewZoomMovesBothPanesAndPreviewZoomOnlyPreview() async throws {
+        let savedSize = Preferences.editorFontSize
+        defer { Preferences.editorFontSize = savedSize }
+        Preferences.editorFontSize = 13
+        let app = try XCTUnwrap(NSApp.delegate as? AppDelegate)
+
+        app.zoomIn(nil)
+        XCTAssertEqual(Preferences.editorFontSize, 14)
+        XCTAssertEqual(Preferences.previewZoom, 1.1)
+        app.previewZoomIn(nil)
+        XCTAssertEqual(Preferences.editorFontSize, 14)
+        XCTAssertEqual(Preferences.previewZoom, 1.2)
+        app.zoomToActualSize(nil)
+        XCTAssertEqual(Preferences.editorFontSize, 13)
+        XCTAssertEqual(Preferences.previewZoom, 1)
+    }
+
+    func testZoomMenuItemsDisableAtLimits() throws {
+        let app = try XCTUnwrap(NSApp.delegate as? AppDelegate)
+        let view = try XCTUnwrap(NSApp.mainMenu?.item(withTitle: "View")?.submenu)
+        let zoomMenu = try XCTUnwrap(view.item(withTitle: "Preview Zoom")?.submenu)
+        let zoomIn = try XCTUnwrap(zoomMenu.item(withTitle: "Zoom In"))
+        let zoomOut = try XCTUnwrap(zoomMenu.item(withTitle: "Zoom Out"))
+        let actual = try XCTUnwrap(zoomMenu.item(withTitle: "Actual Size"))
+        let scale = try XCTUnwrap(zoomMenu.item(withTitle: "Scale to Window"))
+
+        XCTAssertFalse(app.validateMenuItem(actual), "already at 100%")
+        Preferences.previewZoom = Preferences.previewZoomRange.upperBound
+        XCTAssertFalse(app.validateMenuItem(zoomIn))
+        XCTAssertTrue(app.validateMenuItem(actual))
+        Preferences.previewZoom = Preferences.previewZoomRange.lowerBound
+        XCTAssertFalse(app.validateMenuItem(zoomOut))
+
+        XCTAssertTrue(app.validateMenuItem(scale))
+        XCTAssertEqual(scale.state, .off)
+        app.toggleScalePreviewToWindow(nil)
+        _ = app.validateMenuItem(scale)
+        XCTAssertEqual(scale.state, .on)
     }
 
     func testLargeDocumentRenderAndUpdateTiming() async throws {

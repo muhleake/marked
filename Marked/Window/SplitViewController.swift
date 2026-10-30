@@ -17,12 +17,24 @@ final class SplitViewController: NSSplitViewController {
         previewController = PreviewViewController(document: document)
         super.init(nibName: nil, bundle: nil)
         editorController.onScroll = { [weak self] in self?.syncPreviewScroll() }
+        previewController.onScroll = { [weak self] in self?.syncEditorScroll(toSourceLine: $0) }
     }
+
+    /// Set while the preview is moving the editor, so the editor's resulting scroll
+    /// doesn't bounce back to the preview.
+    private var previewDrivingUntil: CFAbsoluteTime = 0
 
     /// Editor → preview scroll sync (approximate), only while both are visible.
     func syncPreviewScroll() {
-        guard layout == .split else { return }
+        guard layout == .split, CFAbsoluteTimeGetCurrent() >= previewDrivingUntil else { return }
         previewController.scrollToSourceLine(editorController.topVisibleSourceLine())
+    }
+
+    /// Preview → editor scroll sync, the same way round.
+    func syncEditorScroll(toSourceLine line: Double) {
+        guard layout == .split else { return }
+        previewDrivingUntil = CFAbsoluteTimeGetCurrent() + 0.25
+        editorController.scroll(toSourceLine: line)
     }
 
     @available(*, unavailable)

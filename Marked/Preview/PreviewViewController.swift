@@ -7,8 +7,11 @@ import WebKit
 /// thread and swap the article's contents through `update(html, base)`, so the
 /// scroll position holds. That function and scroll sync live in an isolated
 /// content world; the page itself runs no script (see the CSP in preview.html).
-final class PreviewViewController: NSViewController, WKNavigationDelegate {
+final class PreviewViewController: NSViewController, WKNavigationDelegate, WKScriptMessageHandler {
     static let debounceInterval: TimeInterval = 0.15
+    /// At this pane width, Scale to Window shows the page at its normal size.
+    static let scaleReferenceWidth: CGFloat = 640
+    private static let scrollMessage = "previewScroll"
 
     private weak var document: MarkdownDocument?
     private(set) var webView: WKWebView!
@@ -28,6 +31,11 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
             if isActive && !oldValue && needsRenderWhenShown { renderNow() }
         }
     }
+
+    /// The user scrolled the preview: the (fractional, 1-based) source line now at
+    /// its top, or `atDocumentEnd` when scrolled all the way down.
+    var onScroll: ((Double) -> Void)?
+    static let atDocumentEnd = -1.0
 
     /// Called after each completed render with the time cmark took. Used by tests.
     var onRender: ((TimeInterval) -> Void)?
@@ -64,18 +72,25 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
         let webView = WKWebView(frame: frame, configuration: configuration)
         webView.allowsBackForwardNavigationGestures = false
         webView.allowsLinkPreview = false
+        // Pinch to zoom.
+        webView.allowsMagnification = true
         return webView
     }
 
     override func loadView() {
         let webView = Self.makeWebView(frame: NSRect(x: 0, y: 0, width: 480, height: 600))
         webView.navigationDelegate = self
+        webView.configuration.userContentController.add(
+            WeakScriptMessageHandler(self), contentWorld: .defaultClient, name: Self.scrollMessage)
         webView.setAccessibilityLabel("Preview")
         self.webView = webView
         view = webView
         applyTheme()
+        applyZoom()
         NotificationCenter.default.addObserver(
             self, selector: #selector(themeDidChange(_:)), name: .previewThemeDidChange, object: nil)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(zoomDidChange(_:)), name: .previewZoomDidChange, object: nil)
 
         ContentRules.load { [weak self] rules in
             guard let self else { return }
@@ -90,6 +105,27 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
     /// Settings ▸ Preview theme: follow the system, or force light/dark.
     private func applyTheme() {
         webView.appearance = Preferences.previewTheme.appearance
+    }
+
+    // MARK: - Zoom
+
+    @objc private func zoomDidChange(_ note: Notification) { applyZoom() }
+
+    override func viewDidLayout() {
+        super.viewDidLayout()
+        if Preferences.scalePreviewToWindow { applyZoom() }
+    }
+
+    /// `pageZoom` rather than magnification: text re-wraps to fit the pane instead of
+    /// running off its edge.
+    private func applyZoom() {
+        var zoom = Preferences.previewZoom
+        if Preferences.scalePreviewToWindow, view.bounds.width > 0 {
+            zoom *= Double(view.bounds.width / Self.scaleReferenceWidth).clamped(to: 0.5...1.5)
+        }
+        if abs(webView.pageZoom - zoom) > 0.001 { webView.pageZoom = zoom }
+        // Back at 100% also clears any pinch.
+        if Preferences.previewZoom == 1, webView.magnification != 1 { webView.magnification = 1 }
     }
 
     private func loadShell() {
@@ -158,6 +194,17 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
             in: nil, in: .defaultClient, completionHandler: nil)
     }
 
+    /// Asks the page to report its position now (see `onScroll`).
+    func reportScrollPosition() {
+        guard pageLoaded else { return }
+        webView.callAsyncJavaScript("marked.reportScroll()", arguments: [:], in: nil, in: .defaultClient, completionHandler: nil)
+    }
+
+    func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.name == Self.scrollMessage, let line = message.body as? NSNumber else { return }
+        onScroll?(line.doubleValue)
+    }
+
     // MARK: - WKNavigationDelegate
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
@@ -223,42 +270,98 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate {
         }
       }
 
+      // Marked's own updates and programmatic scrolls aren't the user scrolling, so
+      // scroll events are ignored for a moment after them.
+      let quietUntil = 0;
+      const quietFor = ms => { quietUntil = Math.max(quietUntil, performance.now() + ms); };
+
+      let cachedBlocks = null;
+      const blocks = () => cachedBlocks ??= Array.from(article().querySelectorAll('[data-sourcepos]'))
+        .filter(el => el.parentElement === article() || el.matches('li, tr'));
+      const pageTop = el => el.getBoundingClientRect().top + window.scrollY;
+      const sourceEnd = el => parseInt(el.getAttribute('data-sourcepos').split('-')[1], 10) || sourceStart(el);
+
+      // The inverse of scrollToLine: the source line at the top of the page.
+      function topLine() {
+        const list = blocks();
+        if (window.scrollY <= 0 || list.length === 0) return 1;
+        if (window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 1) return -1;
+        const y = window.scrollY + 8;
+        let low = 0, high = list.length - 1, found = -1;
+        while (low <= high) {
+          const mid = (low + high) >> 1;
+          if (pageTop(list[mid]) <= y) { found = mid; low = mid + 1; } else { high = mid - 1; }
+        }
+        if (found < 0) return 1;
+        const el = list[found], next = list[found + 1], a = sourceStart(el), top = pageTop(el);
+        if (!next) {
+          const span = Math.max(1, sourceEnd(el) - a + 1);
+          return a + span * Math.min(1, (y - top) / Math.max(1, el.offsetHeight));
+        }
+        return a + (sourceStart(next) - a) * Math.min(1, (y - top) / Math.max(1, pageTop(next) - top));
+      }
+
+      const report = () => window.webkit?.messageHandlers?.previewScroll?.postMessage(topLine());
+
+      let reportPending = false;
+      window.addEventListener('scroll', () => {
+        if (reportPending || performance.now() < quietUntil) return;
+        reportPending = true;
+        setTimeout(() => {
+          reportPending = false;
+          if (performance.now() >= quietUntil) report();
+        }, 16);
+      }, { passive: true });
+
       window.marked = {
         update(html, base) {
           const template = document.createElement('template');
           template.innerHTML = html;
           resolve(template.content, base);
+          quietFor(300);
+          cachedBlocks = null;
           article().replaceChildren(template.content);
         },
 
+        reportScroll: report,
+
         scrollToLine(line) {
-          const blocks = Array.from(article().querySelectorAll('[data-sourcepos]'))
-            .filter(el => el.parentElement === article() || el.matches('li, tr'));
-          if (line <= 1 || blocks.length === 0) { window.scrollTo(0, 0); return; }
+          quietFor(200);
+          const list = blocks();
+          if (line <= 1 || list.length === 0) { window.scrollTo(0, 0); return; }
           let before = null, after = null;
-          for (const el of blocks) {
+          for (const el of list) {
             const start = sourceStart(el);
             if (start <= line) before = el;
             else { after = el; break; }
           }
-          const top = el => el.getBoundingClientRect().top + window.scrollY;
           let y;
           if (!before) {
             y = 0;
           } else if (!after) {
-            const startTop = top(before);
-            const end = parseInt(before.getAttribute('data-sourcepos').split('-')[1], 10) || sourceStart(before);
-            const span = Math.max(1, end - sourceStart(before) + 1);
-            y = startTop + before.offsetHeight * Math.min(1, (line - sourceStart(before)) / span);
+            const span = Math.max(1, sourceEnd(before) - sourceStart(before) + 1);
+            y = pageTop(before) + before.offsetHeight * Math.min(1, (line - sourceStart(before)) / span);
           } else {
             const a = sourceStart(before), b = sourceStart(after);
-            y = top(before) + (top(after) - top(before)) * ((line - a) / Math.max(1, b - a));
+            y = pageTop(before) + (pageTop(after) - pageTop(before)) * ((line - a) / Math.max(1, b - a));
           }
           window.scrollTo(0, Math.max(0, y - 8));
         },
       };
     })();
     """#
+}
+
+/// WKUserContentController retains its message handlers; this keeps it from
+/// retaining the view controller that owns the web view.
+private final class WeakScriptMessageHandler: NSObject, WKScriptMessageHandler {
+    private weak var target: WKScriptMessageHandler?
+
+    init(_ target: WKScriptMessageHandler) { self.target = target }
+
+    func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+        target?.userContentController(controller, didReceive: message)
+    }
 }
 
 extension URL {

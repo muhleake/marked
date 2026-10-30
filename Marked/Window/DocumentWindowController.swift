@@ -63,10 +63,18 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     var layout: PreviewLayout {
         get { splitController.layout }
         set {
+            let previous = splitController.layout
             splitController.layout = newValue
             toolbarController?.syncLayout()
             window?.invalidateRestorableState()
-            if newValue == .split { splitController.syncPreviewScroll() }
+            if newValue == .split {
+                // Line up with whichever pane was the one being read.
+                if previous == .previewOnly {
+                    splitController.previewController.reportScrollPosition()
+                } else {
+                    splitController.syncPreviewScroll()
+                }
+            }
             if newValue == .previewOnly, window?.firstResponder === editorTextView {
                 window?.makeFirstResponder(splitController.previewController.webView)
             } else if newValue != .previewOnly, let editorTextView, window?.firstResponder !== editorTextView {
@@ -105,8 +113,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     func markdownModeDidChange() {
         splitController.editorController.isMarkdownEnabled = isMarkdownEnabled
         toolbarController?.syncLayout()
-        for item in window?.toolbar?.items ?? []
-        where [ToolbarController.headingItem, ToolbarController.textColorItem].contains(item.itemIdentifier) {
+        for item in window?.toolbar?.items ?? [] where item.itemIdentifier == ToolbarController.headingItem {
             item.isEnabled = canApplyMarkdown
         }
         window?.toolbar?.validateVisibleItems()
@@ -125,22 +132,6 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         window?.makeFirstResponder(editor.textView)
         editor.apply(action.edit(in: editor.textView.string, selection: editor.textView.selectedRange()),
                      actionName: action.title)
-    }
-
-    /// Format ▸ Text Color and the toolbar color menu. The item's representedObject
-    /// is the color's hex string; nil means Remove Color.
-    @objc func applyTextColor(_ sender: Any?) {
-        guard canApplyMarkdown else { NSSound.beep(); return }
-        let editor = splitController.editorController
-        let text = editor.textView.string, selection = editor.textView.selectedRange()
-        window?.makeFirstResponder(editor.textView)
-        if let hex = (sender as? NSMenuItem)?.representedObject as? String {
-            editor.apply(MarkdownCommands.toggleTag(.color(hex), in: text, selection: selection), actionName: "Text Color")
-        } else if let edit = MarkdownCommands.removeColor(in: text, selection: selection) {
-            editor.apply(edit, actionName: "Remove Color")
-        } else {
-            NSSound.beep()
-        }
     }
 
     // MARK: - Copy as HTML
@@ -191,7 +182,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
             return isMarkdownEnabled
         case #selector(cyclePreviewLayout(_:)):
             return isMarkdownEnabled
-        case #selector(applyMarkdownAction(_:)), #selector(applyTextColor(_:)):
+        case #selector(applyMarkdownAction(_:)):
             return canApplyMarkdown
         case #selector(toggleTreatAsMarkdown(_:)):
             let plain = markdownDocument?.isPlainText == true

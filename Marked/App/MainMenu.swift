@@ -145,7 +145,7 @@ enum MainMenu {
     private static func formatMenu() -> NSMenu {
         let menu = NSMenu(title: "Format")
         let groups: [[MarkdownAction]] = [
-            [.bold, .italic, .strikethrough, .underline, .highlight],
+            [.bold, .italic, .strikethrough],
             [],  // Heading submenu
             [.bulletList, .numberedList, .taskList, .quote],
             [.inlineCode, .codeBlock],
@@ -159,16 +159,12 @@ enum MainMenu {
                 menu.addItem(submenu: headings)
             }
             group.forEach { menu.addItem($0.menuItem()) }
-            if index == 0 { menu.addItem(submenu: TextColor.menu()) }
         }
         menu.addItem(.separator())
-        menu.addItem("Bigger", #selector(AppDelegate.makeTextBigger(_:)), "+")
-        // ⌘= (no Shift) is what people actually press for "bigger".
-        let equals = menu.addItem("Bigger", #selector(AppDelegate.makeTextBigger(_:)), "=")
-        equals.isHidden = true
-        equals.allowsKeyEquivalentWhenHidden = true
-        menu.addItem("Smaller", #selector(AppDelegate.makeTextSmaller(_:)), "-")
-        menu.addItem("Default Size", #selector(AppDelegate.resetTextSize(_:)), "0")
+        let editorOnly: NSEvent.ModifierFlags = [.command, .control]
+        menu.addItem("Bigger", #selector(AppDelegate.makeTextBigger(_:)), "=", editorOnly)
+        menu.addItem("Smaller", #selector(AppDelegate.makeTextSmaller(_:)), "-", editorOnly)
+        menu.addItem("Default Size", #selector(AppDelegate.resetTextSize(_:)), "0", editorOnly)
         return menu
     }
 
@@ -184,10 +180,31 @@ enum MainMenu {
         menu.addItem(.separator())
         menu.addItem("Treat as Markdown", #selector(DocumentWindowController.toggleTreatAsMarkdown(_:)))
         menu.addItem(.separator())
+        menu.addItem("Zoom In", #selector(AppDelegate.zoomIn(_:)), "+")
+        // ⌘= (no Shift) is what people actually press for ⌘+.
+        let equals = menu.addItem("Zoom In", #selector(AppDelegate.zoomIn(_:)), "=")
+        equals.isHidden = true
+        equals.allowsKeyEquivalentWhenHidden = true
+        menu.addItem("Zoom Out", #selector(AppDelegate.zoomOut(_:)), "-")
+        menu.addItem("Actual Size", #selector(AppDelegate.zoomToActualSize(_:)), "0")
+        menu.addItem(submenu: previewZoomMenu())
+        menu.addItem(.separator())
         menu.addItem("Show Toolbar", #selector(NSWindow.toggleToolbarShown(_:)))
         menu.addItem("Customize Toolbar…", #selector(NSWindow.runToolbarCustomizationPalette(_:)))
         menu.addItem(.separator())
         menu.addItem("Enter Full Screen", #selector(NSWindow.toggleFullScreen(_:)), "f", [.command, .control])
+        return menu
+    }
+
+    /// Zooms just the preview; View ▸ Zoom In/Out moves both panes together.
+    private static func previewZoomMenu() -> NSMenu {
+        let menu = NSMenu(title: "Preview Zoom")
+        let previewOnly: NSEvent.ModifierFlags = [.command, .option]
+        menu.addItem("Zoom In", #selector(AppDelegate.previewZoomIn(_:)), "=", previewOnly)
+        menu.addItem("Zoom Out", #selector(AppDelegate.previewZoomOut(_:)), "-", previewOnly)
+        menu.addItem("Actual Size", #selector(AppDelegate.previewZoomToActualSize(_:)), "0", previewOnly)
+        menu.addItem(.separator())
+        menu.addItem("Scale to Window", #selector(AppDelegate.toggleScalePreviewToWindow(_:)))
         return menu
     }
 
