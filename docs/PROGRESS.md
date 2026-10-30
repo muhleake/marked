@@ -21,7 +21,7 @@ Source of truth: `docs/SPEC.md`. Each phase is ticked only when build + tests + 
 
 - 2026-10-30 — By request: removed the underline, highlight and text color tools; added preview → editor scroll sync, zoom (View ▸ Zoom In/Out/Actual Size for both panes, View ▸ Preview Zoom for the preview alone, Scale to Window, pinch), and a changelog. Editor tinting now tracks code fences incrementally and looks them up by binary search: at 50,000 lines a keystroke went from 13.3 ms to 0.2 ms and opening from 5.2 s to 0.6 s. Also fixed Return in mid-line leaving the new line untinted. Performance rerun with the Mac idle; see `docs/REPORT.md`. 204 tests pass.
 
-- 2026-10-30 — Project docs rewritten to describe Marked on its own terms, with `docs/BEHAVIOR.md` as the behavior reference. Marked is now public domain under the Unlicense.
+- 2026-10-30 — Released Marked into the public domain under the Unlicense. App icon drawn from `assets/AppIcon.svg`; `make icon` regenerates it.
 
 ## Acceptance tests
 

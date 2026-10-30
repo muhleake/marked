@@ -10,7 +10,7 @@ All notable changes to Marked.
 - Zoom: ⌘+, ⌘− and ⌘0 now scale both panes.
 - Preview Zoom (⌥⌘=, ⌥⌘-, ⌥⌘0) scales the preview alone, with a Scale to Window option and a Settings control.
 - Pinch to zoom in the preview.
-- App icon.
+- App icon, with its vector source in `assets/` and `make icon` to regenerate it.
 - [The Unlicense](LICENSE), placing Marked in the public domain.
 - A [behavior reference](docs/BEHAVIOR.md) for Marked's menus and file handling.
 

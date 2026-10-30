@@ -48,6 +48,8 @@ make run
 make install
 ```
 
+`make icon` regenerates the app icon from `assets/AppIcon.svg`.
+
 `make install` builds a Release copy and puts it in `/Applications`. Builds are ad-hoc signed, so no Apple developer account is needed.
 
 To make Marked the default app for a file type, use Finder: Get Info on a file ▸ Open with: Marked ▸ Change All.
@@ -81,6 +83,8 @@ Marked/
   Settings/    Preferences and the Settings window
   Resources/   App icon
 MarkedTests/   Unit and in-app integration tests
+assets/        Vector source for the app icon
+scripts/       Icon rendering script
 docs/          Report, spec, build log and behavior reference
 project.yml    XcodeGen project definition
 Makefile       Build, test, run and install

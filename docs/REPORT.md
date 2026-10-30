@@ -4,7 +4,7 @@ Measured October 30, 2026, on the Release build of Marked installed in `/Applica
 
 ## Summary
 
-Marked meets all of its lightness targets by a wide margin. A launch takes about 0.4 seconds, the app idled at 0.0% CPU in every sample, it makes no network connections, and the bundle is 1.9 MB.
+Marked meets all of its lightness targets by a wide margin. A launch takes about 0.4 seconds, the app idled at 0.0% CPU in every sample, it makes no network connections, and the bundle is 2.0 MB.
 
 This run also shows the large-file problem from the first report is fixed. Opening a 50,000-line file went from 5.2 seconds to 0.6 seconds, and each keystroke's tinting went from 13.3 ms to 0.2 ms. Costs now grow in step with file size.
 
@@ -15,7 +15,7 @@ Of the 19 acceptance tests, 16 pass and 3 are only partly verified because they 
 | Launch to window | Under ~1 s | 412 ms median, 550 ms slowest | Met |
 | Idle CPU with a document open | ~0% | 0.0% in all 30 samples | Met |
 | Network connections | None | 0 sockets, no traffic | Met |
-| App bundle size | Under ~15 MB | 1.9 MB | Met |
+| App bundle size | Under ~15 MB | 2.0 MB | Met |
 | Typing in a 5,000-line file | No visible lag | 0.12 ms per edit | Met |
 
 ## Test setup
@@ -80,9 +80,9 @@ This holds by design. The preview runs under a rule list that blocks every load 
 | Part | Size |
 | --- | --- |
 | Executable (arm64 and x86_64) | 1.6 MB |
-| App icon | 284 KB |
+| App icon | 432 KB |
 | Preview HTML and CSS | 12 KB |
-| **Installed bundle** | **1.9 MB** |
+| **Installed bundle** | **2.0 MB** |
 
 ## Editing and rendering at scale
 
