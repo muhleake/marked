@@ -26,6 +26,7 @@ All notable changes to Marked.
 ### Fixed
 
 - Pressing Return in the middle of a line could leave the new line without its tint.
+- With scroll bars set to Always, opening a file just taller than the window froze the app.
 
 ## 1.0 (2026-10-25)
 

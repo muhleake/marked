@@ -173,6 +173,7 @@ Details are in [PROGRESS.md](PROGRESS.md).
 ## Known limitations
 
 - **Tested on one setup:** the app targets macOS 14 but has only been run on macOS 27.0.1 on Apple silicon. The Intel half of the executable has never been run.
+- **Automated tests don't launch like a person:** the test app is never frontmost, so a freeze that only happened on a real launch with always-visible scroll bars got past them. Launch behavior needs checking with `open`.
 - **Scroll sync is approximate:** it matches rendered blocks to source lines, so the panes can sit a line or so apart, especially inside long paragraphs.
 - **Zoom is app-wide:** zoom settings apply to every window rather than each document.
 - **Keyboard layouts:** ⇧⌘8, ⇧⌘7, ⇧⌘. and ⇧⌘- assume a US layout.

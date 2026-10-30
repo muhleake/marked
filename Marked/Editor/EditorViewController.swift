@@ -62,7 +62,10 @@ final class EditorViewController: NSViewController, NSTextViewDelegate {
         let scrollView = NSScrollView()
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = false
-        scrollView.autohidesScrollers = true
+        // Never auto-hide. With always-visible scroll bars, hiding one widens the text,
+        // which re-wraps it, which can bring the scroll bar back. For text just taller
+        // than the window that loops forever and freezes the app on open.
+        scrollView.autohidesScrollers = false
         scrollView.borderType = .noBorder
         scrollView.drawsBackground = true
         scrollView.documentView = textView

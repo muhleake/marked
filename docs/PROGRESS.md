@@ -23,6 +23,8 @@ Source of truth: `docs/SPEC.md`. Each phase is ticked only when build + tests + 
 
 - 2026-10-30 — Released Marked into the public domain under the Unlicense. App icon drawn from `assets/AppIcon.svg`; `make icon` regenerates it.
 
+- 2026-10-30 — Fixed a freeze on open: with "Show scroll bars" set to Always, an auto-hiding scroll bar made the editor re-wrap in an endless loop when text was just taller than the window. The test suite missed it because the test app is never frontmost, so the launch path was verified with `open` across document lengths.
+
 ## Acceptance tests
 
 Run 2026-10-25 against `/Applications/Marked.app` (Release, ad-hoc) and the in-process test suite (187 tests). "Auto" = verified by an automated test or measurement; "Manual" = needs a person at the keyboard (no Accessibility/Automation permission was available to drive the GUI).

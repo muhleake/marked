@@ -23,6 +23,26 @@ final class EditorIntegrationTests: XCTestCase {
         return try XCTUnwrap(doc.windowControllers.first as? DocumentWindowController)
     }
 
+    /// Regression: an auto-hiding scroll bar changes the text width, which re-wraps the
+    /// text and can loop forever when "Show scroll bars" is set to Always.
+    func testScrollBarNeverChangesTheTextWidth() async throws {
+        let controller = try await window("scroll.md", "short")
+        let editor = controller.splitController.editorController
+        let scrollView = try XCTUnwrap(editor.scrollView)
+        XCTAssertFalse(scrollView.autohidesScrollers)
+
+        scrollView.scrollerStyle = .legacy
+        scrollView.tile()
+        let width = scrollView.contentView.frame.width
+        let long = String(repeating: "A line of text that is long enough to wrap in the editor pane.\n", count: 200)
+        for text in [long, "short", long] {
+            controller.markdownDocument?.replaceText(with: text)
+            editor.textView.layoutManager?.ensureLayout(for: editor.textView.textContainer!)
+            scrollView.tile()
+            XCTAssertEqual(scrollView.contentView.frame.width, width)
+        }
+    }
+
     func testReturnContinuesListInEditor() async throws {
         let controller = try await window("l.md", "- one")
         let textView = try XCTUnwrap(controller.editorTextView)
