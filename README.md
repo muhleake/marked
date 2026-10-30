@@ -119,6 +119,6 @@ The zoom approach and the idea of limiting work to what changed came from studyi
 
 ## License
 
-Marked is released into the public domain under [The Unlicense](LICENSE). Use it for anything, with no conditions and no attribution required.
+Marked is released under the [MIT License](LICENSE). Versions up to and including 1.1 were released under the Unlicense, and those copies keep that license.
 
-swift-cmark keeps its own BSD-2-Clause license. It isn't stored in this repo, but a compiled copy of Marked includes it, so anyone distributing the app needs to keep swift-cmark's copyright notice with it.
+swift-cmark keeps its own BSD-2-Clause license. Its notice is included in the app, at `Contents/Resources/Licenses`, alongside Marked's.

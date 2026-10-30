@@ -10,6 +10,12 @@ trap 'rm -rf "$stage"' EXIT
 
 ditto --norsrc --noextattr "$app" "$stage/Marked.app"
 
+# Licenses that have to travel with compiled copies.
+licenses="$stage/Marked.app/Contents/Resources/Licenses"
+mkdir -p "$licenses"
+cp LICENSE "$licenses/Marked-LICENSE.txt"
+cp "$derived/SourcePackages/checkouts/swift-cmark/COPYING" "$licenses/swift-cmark-COPYING.txt"
+
 # Release builds keep debug info that holds absolute source paths, including the
 # builder's home folder. Strip it, then re-sign, since stripping breaks the signature.
 strip -S -x "$stage/Marked.app/Contents/MacOS/Marked"

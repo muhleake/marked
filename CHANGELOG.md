@@ -2,6 +2,16 @@
 
 All notable changes to Marked.
 
+## Unreleased
+
+### Changed
+
+- Marked is now under the [MIT License](LICENSE). Versions up to and including 1.1 keep the Unlicense.
+
+### Fixed
+
+- The disk image now includes the license notices for Marked and swift-cmark.
+
 ## 1.1 (2026-10-30)
 
 ### Added

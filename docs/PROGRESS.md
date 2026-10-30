@@ -27,6 +27,8 @@ Source of truth: `docs/SPEC.md`. Each phase is ticked only when build + tests + 
 
 - 2026-10-30 — Added `make dmg` and a GitHub Release so Marked can be installed without Xcode. The packaging script strips debug info, which held local build paths, and fails if any remain.
 
+- 2026-10-30 — Moved to the MIT License. `make dmg` now places the Marked and swift-cmark license notices in the app bundle.
+
 ## Acceptance tests
 
 Run 2026-10-25 against `/Applications/Marked.app` (Release, ad-hoc) and the in-process test suite (187 tests). "Auto" = verified by an automated test or measurement; "Manual" = needs a person at the keyboard (no Accessibility/Automation permission was available to drive the GUI).
