@@ -17,6 +17,8 @@ Source of truth: `docs/SPEC.md`. Each phase is ticked only when build + tests + 
 
 - 2026-10-27 — Underline (⌘U, `<u>`), Highlight (⇧⌘H, `<mark>`), Text Color menu (8 presets + Remove Color, `<span style="color: …">`) in the toolbar and Format menu, by request. Markdown has no syntax for these, so they're inline HTML that the preview, print/PDF and Copy as HTML render; the editor dims the tags and shows colored text in its color. New enum cases were appended so saved toolbar layouts keep their identifiers. Dark-mode highlight made stronger. App icon bundled as `Marked/Resources/AppIcon.icns`. 201 tests pass.
 
+- 2026-10-30 — Repo prepared for GitHub: README and screenshot, `docs/REPORT.md` with fresh measurements, swift-cmark pinned to a revision, one type per file for `TextCounts`, `TextColor`, `ContentRules` and `PreviewLayout`, tests split into one class per file and phase-named test files renamed. No behavior changes. 202 tests pass.
+
 ## Acceptance tests
 
 Run 2026-10-25 against `/Applications/Marked.app` (Release, ad-hoc) and the in-process test suite (187 tests). "Auto" = verified by an automated test or measurement; "Manual" = needs a person at the keyboard (no Accessibility/Automation permission was available to drive the GUI).

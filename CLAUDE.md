@@ -2,7 +2,7 @@
 
 Marked is a native, single-purpose macOS Markdown editor: raw text on the left, a live GitHub-flavored preview on the right, and a small formatting toolbar on top. It opens, edits and creates `.md`/`.markdown`/`.mdown` and `.txt` files and nothing else (`.txt` opens editor-only). **Non-goals:** no rich text (RTF/DOCX), no cloud sync, no plugins, no export pipeline beyond Print/Save as PDF and Copy as HTML; no account, telemetry, auto-updater, App Store or notarization; no file browser sidebar, tags, or vault/library concept.
 
-Source of truth: `docs/SPEC.md`. Progress: `docs/PROGRESS.md`. Behavior: `docs/BEHAVIOR.md`.
+Source of truth: `docs/SPEC.md`. Progress: `docs/PROGRESS.md`. Behavior: `docs/BEHAVIOR.md`. Performance: `docs/REPORT.md`.
 
 ## Stack rules
 

@@ -4,13 +4,13 @@ import XCTest
 @testable import Marked
 
 @MainActor
-final class FinishTests: XCTestCase {
+final class AppFeaturesTests: XCTestCase {
     private var tempDir: URL!
     private var opened: [NSDocument] = []
 
     override func setUp() async throws {
         tempDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("MarkedFinishTests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("MarkedAppFeaturesTests-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
     }
 
