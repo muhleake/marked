@@ -17,6 +17,7 @@ All notable changes to Marked.
 ### Changed
 
 - Editor-only text size moved to ⌃⌘=, ⌃⌘- and ⌃⌘0.
+- Builds go to `build.noindex/`, so build copies don't show up in Spotlight.
 - Editor tinting is much faster in large files. At 50,000 lines a keystroke dropped from 13.3 ms to 0.2 ms, and opening a file from 5.2 s to 0.6 s.
 
 ### Removed

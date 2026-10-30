@@ -1,6 +1,7 @@
 SCHEME      := Marked
 DEST        := 'platform=macOS'
-DERIVED     := build
+# Spotlight skips folders ending in .noindex, so build copies stay out of search.
+DERIVED     := build.noindex
 APP_DEBUG   := $(DERIVED)/Build/Products/Debug/Marked.app
 APP_RELEASE := $(DERIVED)/Build/Products/Release/Marked.app
 

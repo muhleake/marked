@@ -183,7 +183,7 @@ Marked/
 
 - Ad-hoc signing only (`CODE_SIGN_IDENTITY="-"`, no development team), so no Apple ID login is ever needed in Xcode and Claude Code builds fully from the terminal. No notarization needed for an app you build yourself.
 - App Sandbox **off** (see decision below). No entitlements file needed beyond an empty one.
-- Install: `xcodebuild -scheme Marked -configuration Release -derivedDataPath build` then copy `build/Build/Products/Release/Marked.app` to `/Applications`. A `make install` target wraps this.
+- Install: `xcodebuild -scheme Marked -configuration Release -derivedDataPath build.noindex` then copy `build.noindex/Build/Products/Release/Marked.app` to `/Applications`. A `make install` target wraps this.
 - Set as default: Finder → Get Info on any `.md` → Open with: Marked → Change All.
 
 **Decision — sandbox off:** a sandboxed app can only load relative images in the preview from folders you've explicitly granted. The sandbox adds friction here with no real benefit, so Marked ships unsandboxed. To keep it on instead, change this line before starting and Claude Code will add folder bookmarks.
@@ -215,7 +215,7 @@ Don't use sudo; if something needs it, stop and give me the exact command to run
    (not CommandLineTools), `xcodebuild -version`, `swift --version`, macOS version.
    If any check fails, tell me exactly which one-time step to redo.
 2. Install missing tools with Homebrew: xcodegen (required). Confirm `xcodegen --version`.
-3. `git init` if this isn't a repo yet; add a Swift/Xcode .gitignore (build/, DerivedData,
+3. `git init` if this isn't a repo yet; add a Swift/Xcode .gitignore (build.noindex/, DerivedData,
    *.xcodeproj/xcuserdata, .DS_Store). Make an initial commit with docs/SPEC.md.
 4. Smoke test: generate a throwaway XcodeGen macOS app in /tmp, build it with
    `xcodebuild ... CODE_SIGN_IDENTITY="-" build`, run its test target, then delete it.

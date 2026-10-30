@@ -16,8 +16,8 @@ Source of truth: `docs/SPEC.md`. Progress: `docs/PROGRESS.md`. Behavior: `docs/B
 ## Build and test
 
 ```sh
-xcodegen generate && xcodebuild -scheme Marked -destination 'platform=macOS' build
-xcodegen generate && xcodebuild -scheme Marked -destination 'platform=macOS' test
+xcodegen generate && xcodebuild -scheme Marked -destination 'platform=macOS' -derivedDataPath build.noindex build
+xcodegen generate && xcodebuild -scheme Marked -destination 'platform=macOS' -derivedDataPath build.noindex test
 ```
 
 Or `make build`, `make test`, `make run`, `make install`. Always build and run tests before saying a task is done.

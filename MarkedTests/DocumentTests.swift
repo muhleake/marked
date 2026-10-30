@@ -228,7 +228,7 @@ final class DocumentTests: XCTestCase {
 
     func testOpenRecentMenuIsPopulated() async throws {
         let dir = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("build/test-files", isDirectory: true)
+            .appendingPathComponent("build.noindex/test-files", isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let url = dir.appendingPathComponent("menu-recent.md")
         try Data("r".utf8).write(to: url)
