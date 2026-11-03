@@ -26,6 +26,8 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         window.tabbingMode = .automatic
         window.tabbingIdentifier = "io.github.muhleake.marked.document"
         window.isRestorable = true
+        // Set the layout before the split view loads, so a hidden preview never starts WebKit.
+        splitController.layout = document.isPlainText ? .editorOnly : Preferences.defaultLayout
         window.contentViewController = splitController
         window.setContentSize(NSSize(width: 1100, height: 720))
         window.center()
@@ -38,7 +40,6 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         window.toolbar = toolbarController.makeToolbar()
         window.toolbarStyle = .expanded
 
-        splitController.layout = document.isPlainText ? .editorOnly : Preferences.defaultLayout
         // `self.document` isn't set until addWindowController, so use the parameter.
         splitController.editorController.isMarkdownEnabled = !document.isPlainText
     }
@@ -194,6 +195,22 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
     }
 
     // MARK: - NSWindowDelegate
+
+    /// Empties the window as it closes. macOS keeps closed windows alive (its own title
+    /// bar views still reference them), and the window server keeps what such a window
+    /// last showed: about 8 MB a window in split view and 24 MB editor-only. Emptying the
+    /// window before it leaves the screen frees that. Tearing down the preview lets its
+    /// web view and WebKit process go.
+    func windowWillClose(_ notification: Notification) {
+        splitController.previewController.tearDown()
+        guard let window else { return }
+        // Hidden first, so the emptied window is never seen.
+        window.alphaValue = 0
+        window.toolbar = nil
+        window.contentViewController = nil
+        // Changes made after the window leaves the screen never reach the window server.
+        CATransaction.flush()
+    }
 
     func windowWillReturnUndoManager(_ window: NSWindow) -> UndoManager? {
         document?.undoManager

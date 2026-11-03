@@ -66,6 +66,30 @@ Physical footprint after launch, with the document open and idle.
 
 Each open window adds its own preview page, so memory will rise with more documents open. That was not measured.
 
+### Memory pass (November 2, 2026)
+
+Medians of three runs of the Release build, measured 15 seconds after opening, the same way as above. The test file is a copy of this project's 124-line README.
+
+| Document | 1.1.1 | Now |
+| --- | --- | --- |
+| Small Markdown file, split view | 86 MB | 86 MB |
+| README as `.md`, split view | 116 MB | 116 MB |
+| README as `.txt`, editor only | 103 MB | 67 MB |
+
+Two changes:
+
+- **The preview starts only when it's shown.** `.txt` files and Editor Only windows used to start a hidden WebKit page, GPU and networking process anyway. Now they don't, which saves about 30 MB, and the Marked process is smaller too.
+- **Closed windows are freed.** Opening and closing the same file in the test app showed the leak. Each closed Markdown window kept its WebKit page process running and left about 14 MB in Marked. Each closed text window left about 25 MB, held by the window server. After the fix, five open-and-close cycles add about 1 MB in total, and no page processes are left over.
+
+  macOS 27 keeps every closed `NSWindow` object alive, because references from its own title bar controls hold it. A bare AppKit window shows the same thing. The window server then keeps the last frame that window showed, so Marked now empties each window before it leaves the screen.
+
+What stays, and why:
+
+- **About 40 MB is the floor for a native window with a toolbar.** An empty AppKit window measured 29 MB, and 39 MB with a 17-button toolbar. Dropping the toolbar would save about 12 MB.
+- **About 33 MB is the floor for the preview.** A blank `WKWebView` costs about 33 MB across the WebKit helper processes. The page process then grows with the length of the rendered document, about 20 MB more for the README, because WebKit keeps its drawn tiles. WebKit has no public setting for this.
+- **Spell checking accounts for most of the launch peak.** With it off, the peak fell from about 120 MB to 54 MB, but steady memory fell only about 4 MB. It stays on.
+- **No measurable effect:** turning off the content rules, sharing a data store, limiting how far ahead the editor lays out text, or asking `malloc` to release free memory.
+
 ## Network
 
 A test document contained a remote image and links.

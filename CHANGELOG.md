@@ -2,6 +2,16 @@
 
 All notable changes to Marked.
 
+## Unreleased
+
+### Changed
+
+- The preview's WebKit processes start only when the preview is first shown, so `.txt` files and Editor Only windows don't run them at all.
+
+### Fixed
+
+- Closed windows no longer keep using memory. Before, each closed Markdown window left its preview's WebKit process running and kept about 14 MB in Marked, and each closed text window kept about 25 MB.
+
 ## 1.1.1 (2026-10-30)
 
 ### Changed

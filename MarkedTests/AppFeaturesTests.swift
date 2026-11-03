@@ -216,6 +216,8 @@ final class AppFeaturesTests: XCTestCase {
         XCTAssertEqual(Preferences.defaultLayout, .editorOnly)
 
         let (_, controller) = try await open("theme.md", "x")
+        XCTAssertNil(controller?.splitController.previewController.webView, "editor-only starts without WebKit")
+        controller?.layout = .split
         let webView = try XCTUnwrap(controller?.splitController.previewController.webView)
         XCTAssertNil(webView.appearance, "follows the system by default")
         controls.theme.selectItem(at: 2)

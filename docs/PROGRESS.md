@@ -29,6 +29,8 @@ Source of truth: `docs/SPEC.md`. Each phase is ticked only when build + tests + 
 
 - 2026-10-30 — Moved to the MIT License. `make dmg` now places the Marked and swift-cmark license notices in the app bundle.
 
+- 2026-11-02 — Memory pass. The preview's web view is created the first time the preview is shown, so `.txt` and Editor Only windows run no WebKit (the README as `.txt`: 103 → 67 MB). Fixed closed windows staying in memory: the web view is torn down on close, and the window is emptied before it leaves the screen, because macOS 27 keeps closed windows alive and the window server keeps their last frame. Open/close cycles now add ~1 MB in total instead of 14–25 MB each. Split-view numbers are unchanged and near the AppKit and WebKit floors; see `docs/REPORT.md`. 207 tests pass.
+
 ## Acceptance tests
 
 Run 2026-10-25 against `/Applications/Marked.app` (Release, ad-hoc) and the in-process test suite (187 tests). "Auto" = verified by an automated test or measurement; "Manual" = needs a person at the keyboard (no Accessibility/Automation permission was available to drive the GUI).

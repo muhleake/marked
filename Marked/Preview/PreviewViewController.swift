@@ -3,6 +3,10 @@ import WebKit
 
 /// The right-hand pane: a WKWebView showing the rendered document.
 ///
+/// The web view (and with it WebKit's page, GPU and network processes) is created
+/// only once the preview is first shown, so editor-only and `.txt` windows never
+/// pay for it, and it is shut down explicitly when the window closes.
+///
 /// The page (preview.html + preview.css) loads once. Edits re-render off the main
 /// thread and swap the article's contents through `update(html, base)`, so the
 /// scroll position holds. That function and scroll sync live in an isolated
@@ -25,10 +29,13 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate, WKScr
     private var queuedScroll: Double?
     private var needsRenderWhenShown = true
 
-    /// When false (pane collapsed), edits only mark the preview stale.
-    var isActive = true {
+    /// When false (pane collapsed), edits only mark the preview stale. The first
+    /// time it turns true, the web view is created.
+    var isActive = false {
         didSet {
-            if isActive && !oldValue && needsRenderWhenShown { renderNow() }
+            guard isActive, !oldValue else { return }
+            makeWebViewIfNeeded()
+            if needsRenderWhenShown { renderNow() }
         }
     }
 
@@ -78,13 +85,22 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate, WKScr
     }
 
     override func loadView() {
-        let webView = Self.makeWebView(frame: NSRect(x: 0, y: 0, width: 480, height: 600))
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 480, height: 600))
+        container.setAccessibilityLabel("Preview")
+        view = container
+        if isActive { makeWebViewIfNeeded() }
+    }
+
+    private func makeWebViewIfNeeded() {
+        guard webView == nil, isViewLoaded else { return }
+        let webView = Self.makeWebView(frame: view.bounds)
+        webView.autoresizingMask = [.width, .height]
         webView.navigationDelegate = self
         webView.configuration.userContentController.add(
             WeakScriptMessageHandler(self), contentWorld: .defaultClient, name: Self.scrollMessage)
         webView.setAccessibilityLabel("Preview")
+        view.addSubview(webView)
         self.webView = webView
-        view = webView
         applyTheme()
         applyZoom()
         NotificationCenter.default.addObserver(
@@ -93,18 +109,40 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate, WKScr
             self, selector: #selector(zoomDidChange(_:)), name: .previewZoomDidChange, object: nil)
 
         ContentRules.load { [weak self] rules in
-            guard let self else { return }
-            if let rules { self.webView.configuration.userContentController.add(rules) }
+            guard let self, let webView = self.webView else { return }
+            if let rules { webView.configuration.userContentController.add(rules) }
             self.rulesInstalled = true
             self.loadShell()
         }
+    }
+
+    /// Shuts the preview down when its window closes. WebKit keeps a page alive
+    /// through its own pending callbacks until it's torn down, and a live web view
+    /// holds its window, so without this every closed window stayed in memory.
+    func tearDown() {
+        pendingRender?.cancel()
+        pendingRender = nil
+        renderGeneration += 1
+        onScroll = nil
+        onRender = nil
+        NotificationCenter.default.removeObserver(self)
+        guard let webView else { return }
+        webView.navigationDelegate = nil
+        webView.stopLoading()
+        let content = webView.configuration.userContentController
+        content.removeAllScriptMessageHandlers()
+        content.removeAllUserScripts()
+        content.removeAllContentRuleLists()
+        webView.removeFromSuperview()
+        self.webView = nil
+        pageLoaded = false
     }
 
     @objc private func themeDidChange(_ note: Notification) { applyTheme() }
 
     /// Settings ▸ Preview theme: follow the system, or force light/dark.
     private func applyTheme() {
-        webView.appearance = Preferences.previewTheme.appearance
+        webView?.appearance = Preferences.previewTheme.appearance
     }
 
     // MARK: - Zoom
@@ -119,6 +157,7 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate, WKScr
     /// `pageZoom` rather than magnification: text re-wraps to fit the pane instead of
     /// running off its edge.
     private func applyZoom() {
+        guard let webView else { return }
         var zoom = Preferences.previewZoom
         if Preferences.scalePreviewToWindow, view.bounds.width > 0 {
             zoom *= Double(view.bounds.width / Self.scaleReferenceWidth).clamped(to: 0.5...1.5)
@@ -129,7 +168,7 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate, WKScr
     }
 
     private func loadShell() {
-        guard let shell = Self.shellURL else { return }
+        guard let shell = Self.shellURL, let webView else { return }
         // Read access to "/" lets relative images anywhere on disk load (the app is unsandboxed).
         webView.loadFileURL(shell, allowingReadAccessTo: URL(fileURLWithPath: "/"))
     }
@@ -173,7 +212,7 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate, WKScr
     }
 
     private func apply(html: String, base: String) {
-        guard pageLoaded else { queuedUpdate = (html, base); return }
+        guard pageLoaded, let webView else { queuedUpdate = (html, base); return }
         webView.callAsyncJavaScript(
             "marked.update(html, base)", arguments: ["html": html, "base": base],
             in: nil, in: .defaultClient, completionHandler: nil)
@@ -181,14 +220,15 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate, WKScr
 
     /// Runs JavaScript in Marked's isolated world (where `marked.*` is defined).
     func evaluate(_ body: String, arguments: [String: Any] = [:]) async throws -> Any? {
-        try await webView.callAsyncJavaScript(body, arguments: arguments, contentWorld: .defaultClient)
+        guard let webView else { throw CocoaError(.featureUnsupported) }
+        return try await webView.callAsyncJavaScript(body, arguments: arguments, contentWorld: .defaultClient)
     }
 
     // MARK: - Scroll sync
 
     /// Scrolls so the element rendered from (fractional, 1-based) source `line` is at the top.
     func scrollToSourceLine(_ line: Double) {
-        guard pageLoaded else { queuedScroll = line; return }
+        guard pageLoaded, let webView else { queuedScroll = line; return }
         webView.callAsyncJavaScript(
             "marked.scrollToLine(line)", arguments: ["line": line],
             in: nil, in: .defaultClient, completionHandler: nil)
@@ -196,7 +236,7 @@ final class PreviewViewController: NSViewController, WKNavigationDelegate, WKScr
 
     /// Asks the page to report its position now (see `onScroll`).
     func reportScrollPosition() {
-        guard pageLoaded else { return }
+        guard pageLoaded, let webView else { return }
         webView.callAsyncJavaScript("marked.reportScroll()", arguments: [:], in: nil, in: .defaultClient, completionHandler: nil)
     }
 

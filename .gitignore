@@ -9,3 +9,6 @@ Marked.xcodeproj/
 
 # macOS
 .DS_Store
+
+# Local files that are not part of the project
+Claude outputs/

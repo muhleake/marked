@@ -183,6 +183,56 @@ final class PreviewTests: XCTestCase {
         XCTAssertEqual(heading, "Heading 151")
     }
 
+    // MARK: - Memory
+
+    /// Regression: WebKit kept closed windows alive through their web views, so every
+    /// closed document stayed in memory, page process included.
+    func testClosingAWindowFreesItAndItsPreview() async throws {
+        weak var window: NSWindow?
+        weak var editor: EditorViewController?
+        weak var preview: PreviewViewController?
+        weak var webView: WKWebView?
+        do {
+            let controller = try await openWindow("close.md", "# Closing\n\nText.")
+            controller.layout = .split
+            try await waitFor(controller.splitController.previewController,
+                              "return document.querySelector('#content h1')?.textContent ?? ''", equals: "Closing")
+            window = controller.window
+            editor = controller.splitController.editorController
+            preview = controller.splitController.previewController
+            webView = controller.splitController.previewController.webView
+            XCTAssertNotNil(webView)
+            let doc = try XCTUnwrap(opened.popLast())
+            doc.close()
+        }
+        let deadline = Date().addingTimeInterval(5)
+        while webView != nil || editor != nil || preview != nil, Date() < deadline {
+            try await Task.sleep(nanoseconds: 100_000_000)
+        }
+        XCTAssertNil(webView, "web view still alive after close")
+        XCTAssertNil(editor, "editor still alive after close")
+        XCTAssertNil(preview, "preview still alive after close")
+        // macOS may keep the closed NSWindow object itself; it must be empty.
+        XCTAssertNil(window?.contentViewController)
+        XCTAssertNil(window?.toolbar)
+    }
+
+    func testPreviewStartsOnlyWhenShown() async throws {
+        let txt = try await openWindow("lazy.txt", "# plain")
+        XCTAssertNil(txt.splitController.previewController.webView, "no WebKit for a plain-text window")
+        txt.toggleTreatAsMarkdown(nil)
+        XCTAssertNotNil(txt.splitController.previewController.webView)
+        try await waitFor(txt.splitController.previewController, "return document.querySelector('#content h1')?.textContent ?? ''", equals: "plain")
+
+        let savedLayout = Preferences.defaultLayout
+        defer { Preferences.defaultLayout = savedLayout }
+        Preferences.defaultLayout = .editorOnly
+        let md = try await openWindow("lazy.md", "# later")
+        XCTAssertNil(md.splitController.previewController.webView, "no WebKit while the preview is hidden")
+        md.layout = .split
+        try await waitFor(md.splitController.previewController, "return document.querySelector('#content h1')?.textContent ?? ''", equals: "later")
+    }
+
     // MARK: - Preview → editor scroll sync
 
     private func openLongDocument(_ name: String) async throws -> DocumentWindowController {
