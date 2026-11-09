@@ -38,8 +38,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.github.muhleake.marked
         PRODUCT_NAME: Marked
-        MARKETING_VERSION: "1.1.2"
-        CURRENT_PROJECT_VERSION: "4"
+        MARKETING_VERSION: "1.2"
+        CURRENT_PROJECT_VERSION: "5"
         CODE_SIGN_ENTITLEMENTS: Marked/Marked.entitlements
         ENABLE_APP_SANDBOX: NO
         INFOPLIST_FILE: Marked/Info.plist
