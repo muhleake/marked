@@ -148,17 +148,9 @@ The first report guessed at a different cause, repeated string conversion. Fixin
 - **Preview scrolling in very large files:** moving the editor from the preview takes about 35 ms at 50,000 lines, roughly two frames, so the editor may visibly trail the preview at that size. At 5,000 lines it takes about 6 ms. The cost is exact text layout up to the target line.
 - **Everything else:** rendering and word counts run off the main thread, scale linearly, and stay under 50 ms at 50,000 lines.
 
-## What came from MarkEdit
+## Possible additions
 
-[MarkEdit](https://github.com/MarkEdit-app/MarkEdit) is an MIT-licensed Mac Markdown editor. Its editor runs CodeMirror in a web view, while Marked uses a native text view, so none of its editor code applies and none was copied.
-
-| MarkEdit idea | What Marked did |
-| --- | --- |
-| Pinch to zoom, 10% zoom steps, menu items that disable at the limits | Adopted, using page zoom so text re-wraps to fit the pane |
-| Doing work only on the text that changed or is visible | Applied to code-fence tracking, which produced the speedup above |
-| README with icon and screenshots, plain top-level layout | Adopted |
-
-Ideas from its source folders that Marked could add later, not evaluated in depth:
+Not evaluated in depth:
 
 - A Quick Look extension, to preview Markdown files in Finder
 - A table of contents for jumping between headings

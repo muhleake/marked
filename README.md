@@ -115,7 +115,7 @@ The only third-party dependency is [swift-cmark](https://github.com/apple/swift-
 
 ## Acknowledgments
 
-The zoom approach and the idea of limiting work to what changed came from studying [MarkEdit](https://github.com/MarkEdit-app/MarkEdit), an MIT-licensed Markdown editor. No code was copied.
+Some early inspiration came from [MarkEdit](https://github.com/MarkEdit-app/MarkEdit), another Markdown editor for the Mac. Marked's code is its own.
 
 ## License
 
