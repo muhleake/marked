@@ -180,6 +180,9 @@ enum MainMenu {
         menu.addItem(.separator())
         menu.addItem("Treat as Markdown", #selector(DocumentWindowController.toggleTreatAsMarkdown(_:)))
         menu.addItem(.separator())
+        menu.addItem("Show Line Numbers", #selector(AppDelegate.toggleLineNumbers(_:)))
+        menu.addItem("Show Indentation Guides", #selector(AppDelegate.toggleIndentGuides(_:)))
+        menu.addItem(.separator())
         menu.addItem("Zoom In", #selector(AppDelegate.zoomIn(_:)), "+")
         // ⌘= (no Shift) is what people actually press for ⌘+.
         let equals = menu.addItem("Zoom In", #selector(AppDelegate.zoomIn(_:)), "=")

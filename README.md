@@ -19,7 +19,7 @@ Marked isn't affiliated with the commercial Marked 2 app. It has no accounts, te
 - **Two-way scroll sync:** scroll either pane and the other follows.
 - **Zoom:** ⌘+ and ⌘− scale both panes. Preview Zoom scales only the preview, and Scale to Window sizes it to its pane. Pinch works in the preview too.
 - **Formatting toolbar:** every button works on the selection, toggles off, and undoes in one step. Shortcuts are listed below.
-- **Editor:** color and weight tinting that never hides characters, list continuation, Tab and Shift-Tab indenting, adjustable font size, and a word, character and line count.
+- **Editor:** color and weight tinting that never hides characters, list continuation, Tab and Shift-Tab indenting, adjustable font size, optional line numbers and indentation guides, and a word, character and line count.
 - **Plain text:** `.txt` files open editor-only. View ▸ Treat as Markdown turns the preview on for that window without renaming the file.
 - **Output:** Print and Export as PDF use the rendered preview. Edit ▸ Copy as HTML copies the rendered selection or the whole document.
 - **File handling:** reads UTF-8, UTF-16 and Windows-1252, always writes UTF-8, keeps LF or CRLF line endings, and prompts to reload when another app changes the file.

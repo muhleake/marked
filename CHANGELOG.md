@@ -2,6 +2,13 @@
 
 All notable changes to Marked.
 
+## Unreleased
+
+### Added
+
+- View ▸ Show Line Numbers. Each line of the file gets one number, even when it wraps onto several rows.
+- View ▸ Show Indentation Guides, a faint line at each indent level.
+
 ## 1.1.2 (2026-11-04)
 
 ### Changed

@@ -8,6 +8,8 @@ enum Preferences {
         static let previewTheme = "PreviewTheme"
         static let previewZoom = "PreviewZoom"
         static let scalePreviewToWindow = "ScalePreviewToWindow"
+        static let showLineNumbers = "ShowLineNumbers"
+        static let showIndentGuides = "ShowIndentGuides"
     }
 
     enum PreviewTheme: String, CaseIterable {
@@ -42,6 +44,8 @@ enum Preferences {
             Key.previewTheme: PreviewTheme.system.rawValue,
             Key.previewZoom: 1.0,
             Key.scalePreviewToWindow: false,
+            Key.showLineNumbers: false,
+            Key.showIndentGuides: false,
             // Markdown is corrupted by smart substitutions; keep them off app-wide.
             "NSAutomaticQuoteSubstitutionEnabled": false,
             "NSAutomaticDashSubstitutionEnabled": false,
@@ -88,6 +92,22 @@ enum Preferences {
         }
     }
 
+    static var showLineNumbers: Bool {
+        get { UserDefaults.standard.bool(forKey: Key.showLineNumbers) }
+        set {
+            UserDefaults.standard.set(newValue, forKey: Key.showLineNumbers)
+            NotificationCenter.default.post(name: .editorDisplayDidChange, object: nil)
+        }
+    }
+
+    static var showIndentGuides: Bool {
+        get { UserDefaults.standard.bool(forKey: Key.showIndentGuides) }
+        set {
+            UserDefaults.standard.set(newValue, forKey: Key.showIndentGuides)
+            NotificationCenter.default.post(name: .editorDisplayDidChange, object: nil)
+        }
+    }
+
     static var previewTheme: PreviewTheme {
         get { PreviewTheme(rawValue: UserDefaults.standard.string(forKey: Key.previewTheme) ?? "") ?? .system }
         set {
@@ -99,6 +119,7 @@ enum Preferences {
 
 extension Notification.Name {
     static let editorFontSizeDidChange = Notification.Name("MarkedEditorFontSizeDidChange")
+    static let editorDisplayDidChange = Notification.Name("MarkedEditorDisplayDidChange")
     static let previewThemeDidChange = Notification.Name("MarkedPreviewThemeDidChange")
     static let previewZoomDidChange = Notification.Name("MarkedPreviewZoomDidChange")
 }

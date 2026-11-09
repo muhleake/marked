@@ -3,9 +3,10 @@ import AppKit
 /// The raw-text pane: an NSTextView on the document's text storage.
 final class EditorViewController: NSViewController, NSTextViewDelegate {
     let textStorage: NSTextStorage
-    private(set) var textView: NSTextView!
+    private(set) var textView: EditorTextView!
     private(set) var scrollView: NSScrollView!
     private(set) var statusLabel: NSTextField!
+    private(set) var lineNumbers: LineNumberRulerView!
     private(set) var highlighter: MarkdownHighlighter!
 
     /// Tinting and list editing; off for plain .txt unless "Treat as Markdown".
@@ -51,7 +52,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate {
         container.widthTracksTextView = true
         layoutManager.addTextContainer(container)
 
-        let textView = NSTextView(frame: NSRect(x: 0, y: 0, width: 480, height: 600), textContainer: container)
+        let textView = EditorTextView(frame: NSRect(x: 0, y: 0, width: 480, height: 600), textContainer: container)
         textView.minSize = NSSize(width: 0, height: 0)
         textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         textView.isVerticallyResizable = true
@@ -70,8 +71,14 @@ final class EditorViewController: NSViewController, NSTextViewDelegate {
         scrollView.drawsBackground = true
         scrollView.documentView = textView
 
+        let lineNumbers = LineNumberRulerView(textView: textView, scrollView: scrollView)
+        lineNumbers.lineIndex = { [unowned self] in self.lineIndex(ofCharacterAt: $0) }
+        scrollView.verticalRulerView = lineNumbers
+        scrollView.hasVerticalRuler = true
+
         self.textView = textView
         self.scrollView = scrollView
+        self.lineNumbers = lineNumbers
 
         // Slim status bar: words · characters · lines.
         let statusLabel = NSTextField(labelWithString: "")
@@ -104,10 +111,13 @@ final class EditorViewController: NSViewController, NSTextViewDelegate {
         textView.delegate = self
         highlighter = MarkdownHighlighter(textStorage: textStorage, enabled: isMarkdownEnabled)
         applyFontSize()
+        applyDisplayOptions()
         updateCounts(immediately: true)
 
         NotificationCenter.default.addObserver(
             self, selector: #selector(fontSizeDidChange(_:)), name: .editorFontSizeDidChange, object: nil)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(displayOptionsDidChange(_:)), name: .editorDisplayDidChange, object: nil)
 
         scrollView.contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(
@@ -117,12 +127,22 @@ final class EditorViewController: NSViewController, NSTextViewDelegate {
 
     @objc private func storageDidProcessEditing(_ note: Notification) {
         guard textStorage.editedMask.contains(.editedCharacters) else { return }
-        lineStarts = nil
+        updateLineStarts(editedRange: textStorage.editedRange, changeInLength: textStorage.changeInLength)
         updateCounts()
     }
 
     @objc private func fontSizeDidChange(_ note: Notification) {
         applyFontSize()
+    }
+
+    @objc private func displayOptionsDidChange(_ note: Notification) {
+        applyDisplayOptions()
+    }
+
+    /// View ▸ Show Line Numbers and Show Indentation Guides, shared by every window.
+    func applyDisplayOptions() {
+        scrollView.rulersVisible = Preferences.showLineNumbers
+        textView.showsIndentGuides = Preferences.showIndentGuides
     }
 
     // MARK: - Status bar
@@ -142,6 +162,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate {
                     guard generation == self.countGeneration else { return }
                     self.counts = counts
                     self.statusLabel.stringValue = counts.description
+                    self.lineNumbers.lineCount = counts.lines
                 }
             }
         }
@@ -241,21 +262,49 @@ final class EditorViewController: NSViewController, NSTextViewDelegate {
         return low
     }
 
-    private func lineStartOffsets() -> [Int] {
+    func lineStartOffsets() -> [Int] {
         if let lineStarts { return lineStarts }
-        var starts = [0]
-        let string = textStorage.string as NSString
-        let length = string.length
-        var index = 0
-        while index < length {
-            let range = string.lineRange(for: NSRange(location: index, length: 0))
-            index = NSMaxRange(range)
-            if index < length || (index == length && length > 0 && string.character(at: length - 1) == 0x0A) {
-                starts.append(index)
-            }
-        }
+        let starts = Self.lineStarts(of: textStorage.string as NSString)
         lineStarts = starts
         return starts
+    }
+
+    /// Offsets where each line starts: 0, then just after every line break.
+    static func lineStarts(of string: NSString) -> [Int] {
+        [0] + lineBreakEnds(in: string, range: NSRange(location: 0, length: string.length))
+    }
+
+    /// Offsets just after each line break in `range`.
+    private static func lineBreakEnds(in string: NSString, range: NSRange) -> [Int] {
+        var starts: [Int] = []
+        var search = range
+        while search.length > 0 {
+            let newline = string.range(of: "\n", options: .literal, range: search)
+            if newline.location == NSNotFound { break }
+            starts.append(newline.location + 1)
+            search = NSRange(location: newline.location + 1, length: NSMaxRange(range) - newline.location - 1)
+        }
+        return starts
+    }
+
+    /// Patches the line table for one edit instead of rescanning the file, so line
+    /// numbers stay cheap while typing in long files.
+    private func updateLineStarts(editedRange: NSRange, changeInLength delta: Int) {
+        guard var starts = lineStarts, editedRange.location != NSNotFound else { lineStarts = nil; return }
+        let oldEnd = NSMaxRange(editedRange) - delta
+        // Starts after a line break inside the edited text are replaced; later ones move.
+        func firstIndex(after offset: Int) -> Int {
+            var low = 0, high = starts.count
+            while low < high {
+                let mid = (low + high) / 2
+                if starts[mid] <= offset { low = mid + 1 } else { high = mid }
+            }
+            return low
+        }
+        let lower = firstIndex(after: editedRange.location), upper = firstIndex(after: oldEnd)
+        for index in upper..<starts.count { starts[index] += delta }
+        starts.replaceSubrange(lower..<upper, with: Self.lineBreakEnds(in: textStorage.string as NSString, range: editedRange))
+        lineStarts = starts
     }
 
     private func configure(_ textView: NSTextView) {
@@ -300,5 +349,7 @@ final class EditorViewController: NSViewController, NSTextViewDelegate {
         textView.defaultParagraphStyle = attributes[.paragraphStyle] as? NSParagraphStyle
         textView.typingAttributes = attributes
         highlighter?.highlightAll()
+        lineNumbers?.updateThickness()
+        lineNumbers?.needsDisplay = true
     }
 }

@@ -50,6 +50,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
     @objc func previewZoomOut(_ sender: Any?) { Preferences.previewZoom -= Preferences.previewZoomStep }
     @objc func previewZoomToActualSize(_ sender: Any?) { Preferences.previewZoom = 1 }
     @objc func toggleScalePreviewToWindow(_ sender: Any?) { Preferences.scalePreviewToWindow.toggle() }
+    @objc func toggleLineNumbers(_ sender: Any?) { Preferences.showLineNumbers.toggle() }
+    @objc func toggleIndentGuides(_ sender: Any?) { Preferences.showIndentGuides.toggle() }
 
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
         let zoom = Preferences.previewZoom, range = Preferences.previewZoomRange
@@ -63,6 +65,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         case #selector(previewZoomToActualSize(_:)): return zoom != 1
         case #selector(toggleScalePreviewToWindow(_:)):
             item.state = Preferences.scalePreviewToWindow ? .on : .off
+            return true
+        case #selector(toggleLineNumbers(_:)):
+            item.state = Preferences.showLineNumbers ? .on : .off
+            return true
+        case #selector(toggleIndentGuides(_:)):
+            item.state = Preferences.showIndentGuides ? .on : .off
             return true
         default: return true
         }

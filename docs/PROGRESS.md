@@ -30,6 +30,7 @@ Source of truth: `docs/SPEC.md`. Each phase is ticked only when build + tests + 
 - 2026-10-30 — Moved to the MIT License. `make dmg` now places the Marked and swift-cmark license notices in the app bundle.
 
 - 2026-11-02 — Memory pass. The preview's web view is created the first time the preview is shown, so `.txt` and Editor Only windows run no WebKit (the README as `.txt`: 103 → 67 MB). Fixed closed windows staying in memory: the web view is torn down on close, and the window is emptied before it leaves the screen, because macOS 27 keeps closed windows alive and the window server keeps their last frame. Open/close cycles now add ~1 MB in total instead of 14–25 MB each. Split-view numbers are unchanged and near the AppKit and WebKit floors; see `docs/REPORT.md`. 207 tests pass.
+- 2026-11-09 — By request, View ▸ Show Line Numbers (a ruler with one number per file line, wrapped rows unnumbered) and View ▸ Show Indentation Guides (a hairline at each four-space or tab indent level). Both are off by default and shared by every window. The line table is now patched per edit instead of rebuilt, so at 50,000 lines typing costs the same with line numbers on as off (about 3 ms per keystroke including redraw; a full rebuild added about 7 ms). Launched with both on and always-visible scroll bars: 0% CPU idle, no re-wrap loop. 213 tests pass.
 
 ## Acceptance tests
 

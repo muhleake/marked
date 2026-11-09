@@ -84,6 +84,8 @@ View
   Split, Editor Only, Preview Only
   Cycle Layout               ⌥⌘P
   Treat as Markdown
+  Show Line Numbers
+  Show Indentation Guides
   Zoom In                    ⌘+
   Zoom Out                   ⌘−
   Actual Size                ⌘0
@@ -143,6 +145,7 @@ Help
 - Smart quotes, smart dashes, text replacement, link detection and auto-correct are off by default, because they corrupt Markdown.
 - Return continues lists. Return on an empty item ends the list.
 - Tab and Shift-Tab indent and outdent list items and selected lines.
+- View ▸ Show Line Numbers numbers each line of the file. A line that wraps onto several rows gets one number. View ▸ Show Indentation Guides draws a faint line at each indent level, every four spaces or tab. Both are off by default and apply to every window.
 
 ## Print and export
 
