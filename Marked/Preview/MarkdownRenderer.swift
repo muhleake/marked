@@ -10,9 +10,12 @@ enum MarkdownRenderer {
 
     private static let registerExtensions: Void = cmark_gfm_core_extensions_ensure_registered()
 
-    /// - Parameter sourcePositions: adds `data-sourcepos="line:col-line:col"` to block
-    ///   elements, used for editor → preview scroll sync.
-    static func html(from markdown: String, sourcePositions: Bool = true) -> String {
+    /// - Parameters:
+    ///   - sourcePositions: adds `data-sourcepos="line:col-line:col"` to block
+    ///     elements, used for editor → preview scroll sync.
+    ///   - hidingFrontMatter: leaves out a front matter block at the top. Off for text
+    ///     that doesn't start at the top of the file, such as a selection.
+    static func html(from markdown: String, sourcePositions: Bool = true, hidingFrontMatter: Bool = true) -> String {
         _ = registerExtensions
 
         var options = CMARK_OPT_UNSAFE | CMARK_OPT_FOOTNOTES | CMARK_OPT_STRIKETHROUGH_DOUBLE_TILDE
@@ -27,7 +30,7 @@ enum MarkdownRenderer {
             }
         }
 
-        var source = markdown
+        var source = hidingFrontMatter ? blankingFrontMatter(in: markdown) : markdown
         source.withUTF8 { buffer in
             buffer.withMemoryRebound(to: CChar.self) { chars in
                 if let base = chars.baseAddress { cmark_parser_feed(parser, base, chars.count) }
@@ -40,5 +43,28 @@ enum MarkdownRenderer {
         guard let html = cmark_render_html(document, options, cmark_parser_get_syntax_extensions(parser)) else { return "" }
         defer { free(html) }
         return String(cString: html)
+    }
+
+    /// Replaces a front matter block with empty lines, so it isn't rendered and later
+    /// lines keep their line numbers. Front matter is metadata that site generators and
+    /// notes apps put at the very top: YAML between `---` and `---` (or `...`), or TOML
+    /// between `+++` lines. Without a closing line, nothing is hidden.
+    static func blankingFrontMatter(in markdown: String) -> String {
+        guard markdown.hasPrefix("---") || markdown.hasPrefix("+++") else { return markdown }
+        let fences: [Substring: Set<Substring>] = ["---": ["---", "..."], "+++": ["+++"]]
+        // Split on UTF-16 so "\r\n" (one Character in Swift) still breaks lines.
+        var lines = (markdown as NSString).components(separatedBy: "\n")
+        func trimmed(_ line: String) -> Substring {
+            var line = line[...]
+            while let last = line.unicodeScalars.last, " \t\r".unicodeScalars.contains(last) {
+                line = line.dropLast()
+            }
+            return line
+        }
+        guard lines.count > 1, let closers = fences[trimmed(lines[0])],
+              let end = lines.indices.dropFirst().first(where: { closers.contains(trimmed(lines[$0])) })
+        else { return markdown }
+        for index in 0...end { lines[index] = "" }
+        return lines.joined(separator: "\n")
     }
 }

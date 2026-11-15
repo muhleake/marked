@@ -18,9 +18,14 @@ cp "$derived/SourcePackages/checkouts/swift-cmark/COPYING" "$licenses/swift-cmar
 
 # Release builds keep debug info that holds absolute source paths, including the
 # builder's home folder. Strip it, then re-sign, since stripping breaks the signature.
+# The Quick Look extension is signed first, keeping its sandbox entitlement, which
+# macOS requires before it will load the extension.
+appex="$stage/Marked.app/Contents/PlugIns/MarkedQuickLook.appex"
+strip -S -x "$appex/Contents/MacOS/MarkedQuickLook"
+codesign --force --sign - --preserve-metadata=entitlements "$appex"
 strip -S -x "$stage/Marked.app/Contents/MacOS/Marked"
-codesign --force --sign - "$stage/Marked.app"
-codesign --verify --strict "$stage/Marked.app"
+codesign --force --sign - --preserve-metadata=entitlements "$stage/Marked.app"
+codesign --verify --deep --strict "$stage/Marked.app"
 
 if LC_ALL=C grep -a -q -r "/Users/" "$stage/Marked.app"; then
     echo "error: a local path is still inside Marked.app, refusing to package it" >&2

@@ -138,6 +138,18 @@ Help
 - View ▸ Treat as Markdown turns the preview, tinting, toolbar and list editing on for that window without renaming the file.
 - Printing a plain text window prints the raw text.
 
+## Front matter
+
+- A front matter block at the very top of a file is left out of the preview, printing, PDF export and Copy as HTML. It stays in the editor and the saved file.
+- The block starts with `---` on the first line and ends at the next `---` or `...` line (YAML), or starts and ends with `+++` (TOML). Without a closing line, nothing is hidden.
+- Copy as HTML of a selection hides front matter only when the selection starts at the top of the file.
+
+## Quick Look
+
+- Pressing Space on a `.md`, `.markdown` or `.mdown` file in Finder shows it rendered with Marked's preview styles, light or dark. `.txt` files keep the system's plain text preview.
+- The preview never loads anything from the network. Images don't show, because macOS lets a Quick Look extension read only the file being previewed.
+- The extension runs only while a preview is open.
+
 ## Editing
 
 - Find, Find & Replace and Use Selection for Find use the inline find bar.

@@ -2,6 +2,16 @@
 
 All notable changes to Marked.
 
+## Unreleased
+
+### Added
+
+- Quick Look: press Space on a Markdown file in Finder to see it rendered.
+
+### Fixed
+
+- Front matter at the top of a file (between `---` or `+++` lines) no longer shows up in the preview as a horizontal rule and loose text. It's left out of the preview, printing and Copy as HTML.
+
 ## 1.2 (2026-11-09)
 
 ### Added

@@ -111,4 +111,35 @@ final class RendererTests: XCTestCase {
         while out.count < lines { out.append(contentsOf: block) }
         return out.prefix(lines).joined(separator: "\n")
     }
+
+    // MARK: - Front matter
+
+    func testYAMLFrontMatterIsHidden() {
+        let html = MarkdownRenderer.html(from: "---\ntitle: Notes\ntags: [a, b]\n---\n# Heading\n", sourcePositions: false)
+        XCTAssertEqual(html, "<h1>Heading</h1>\n")
+    }
+
+    func testOtherFrontMatterFormsAreHidden() {
+        XCTAssertEqual(MarkdownRenderer.html(from: "---\ntitle: x\n...\nText", sourcePositions: false), "<p>Text</p>\n")
+        XCTAssertEqual(MarkdownRenderer.html(from: "+++\ntitle = \"x\"\n+++\nText", sourcePositions: false), "<p>Text</p>\n")
+        XCTAssertEqual(MarkdownRenderer.html(from: "---  \r\na: 1\r\n---\r\nText", sourcePositions: false), "<p>Text</p>\n")
+        XCTAssertEqual(MarkdownRenderer.html(from: "---\n---\nText", sourcePositions: false), "<p>Text</p>\n")
+    }
+
+    func testFrontMatterKeepsLineNumbersForScrollSync() {
+        let html = MarkdownRenderer.html(from: "---\na: 1\n---\n\nText")
+        XCTAssertTrue(html.contains(#"data-sourcepos="5:1-5:4""#), html)
+    }
+
+    func testRulesAreNotFrontMatter() {
+        // A rule that isn't on the first line, or has no closing line, still renders.
+        XCTAssertTrue(MarkdownRenderer.html(from: "Intro\n\n---\n\nmore\n\n---\n").contains("<hr"))
+        XCTAssertTrue(MarkdownRenderer.html(from: "---\n\nText with no closing line").contains("<hr"))
+        XCTAssertTrue(MarkdownRenderer.html(from: "- - -\nlist?\n---\n").contains("<hr"))
+    }
+
+    func testFrontMatterCanBeKept() {
+        let html = MarkdownRenderer.html(from: "---\na: 1\n---\n", sourcePositions: false, hidingFrontMatter: false)
+        XCTAssertTrue(html.contains("<hr"))
+    }
 }

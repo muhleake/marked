@@ -143,7 +143,9 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate, NSMe
         guard let textView = editorTextView else { return }
         let selection = textView.selectedRange()
         let source = selection.length > 0 ? (textView.string as NSString).substring(with: selection) : textView.string
-        let html = MarkdownRenderer.html(from: source, sourcePositions: false)
+        // Only text from the top of the file can start with front matter.
+        let html = MarkdownRenderer.html(from: source, sourcePositions: false,
+                                         hidingFrontMatter: selection.length == 0 || selection.location == 0)
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         pasteboard.setString(html, forType: .html)

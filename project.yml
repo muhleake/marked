@@ -14,6 +14,8 @@ settings:
     DEVELOPMENT_TEAM: ""
     ENABLE_HARDENED_RUNTIME: NO
     DEAD_CODE_STRIPPING: YES
+    MARKETING_VERSION: "1.2"
+    CURRENT_PROJECT_VERSION: "5"
 
 packages:
   swift-cmark:
@@ -34,12 +36,11 @@ targets:
         product: cmark-gfm
       - package: swift-cmark
         product: cmark-gfm-extensions
+      - target: MarkedQuickLook
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: io.github.muhleake.marked
         PRODUCT_NAME: Marked
-        MARKETING_VERSION: "1.2"
-        CURRENT_PROJECT_VERSION: "5"
         CODE_SIGN_ENTITLEMENTS: Marked/Marked.entitlements
         ENABLE_APP_SANDBOX: NO
         INFOPLIST_FILE: Marked/Info.plist
@@ -88,6 +89,53 @@ targets:
             UTTypeConformsTo: [net.daringfireball.markdown, public.plain-text]
             UTTypeTagSpecification:
               public.filename-extension: [mdown]
+
+  MarkedQuickLook:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: MarkedQuickLook
+        excludes:
+          - Info.plist
+          - MarkedQuickLook.entitlements
+      # Shared with the app: the same rendering, styles and file decoding.
+      - path: Marked/Preview/MarkdownRenderer.swift
+      - path: Marked/Document/FileEncoding.swift
+      - path: Marked/Preview/Resources/preview.css
+        buildPhase: resources
+    dependencies:
+      - package: swift-cmark
+        product: cmark-gfm
+      - package: swift-cmark
+        product: cmark-gfm-extensions
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.muhleake.marked.quicklook
+        PRODUCT_NAME: MarkedQuickLook
+        CODE_SIGN_ENTITLEMENTS: MarkedQuickLook/MarkedQuickLook.entitlements
+        ENABLE_APP_SANDBOX: YES
+        INFOPLIST_FILE: MarkedQuickLook/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        SKIP_INSTALL: YES
+    info:
+      path: MarkedQuickLook/Info.plist
+      properties:
+        CFBundleName: MarkedQuickLook
+        CFBundleDisplayName: Marked Quick Look
+        CFBundleIdentifier: $(PRODUCT_BUNDLE_IDENTIFIER)
+        CFBundleExecutable: $(EXECUTABLE_NAME)
+        CFBundlePackageType: XPC!
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
+        NSHumanReadableCopyright: "Copyright © 2026 muhleake. MIT License."
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.quicklook.preview
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).PreviewProvider
+          NSExtensionAttributes:
+            QLIsDataBasedPreview: true
+            QLSupportsSearchableItems: false
+            QLSupportedContentTypes: [net.daringfireball.markdown, io.github.muhleake.marked.mdown]
 
   MarkedTests:
     type: bundle.unit-test

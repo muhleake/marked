@@ -10,7 +10,7 @@ Source of truth: `docs/SPEC.md`. Progress: `docs/PROGRESS.md`. Behavior: `docs/B
 - Document-based: `NSDocumentController` + `MarkdownDocument: NSDocument`.
 - Editor: `NSTextView` in `NSScrollView`. Preview: `WKWebView` with a bundled HTML shell + CSS.
 - Markdown: `swift-cmark` (gfm branch) via SPM — `cmark-gfm` + `cmark-gfm-extensions`.
-- macOS 14 minimum. Ad-hoc code signing (`CODE_SIGN_IDENTITY="-"`, no team). App Sandbox off.
+- macOS 14 minimum. Ad-hoc code signing (`CODE_SIGN_IDENTITY="-"`, no team). App Sandbox off for the app; the Quick Look extension is sandboxed because macOS requires it.
 - No other third-party dependencies without asking first.
 
 ## Build and test

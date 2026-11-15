@@ -21,6 +21,8 @@ Marked isn't affiliated with the commercial Marked 2 app. It has no accounts, te
 - **Formatting toolbar:** every button works on the selection, toggles off, and undoes in one step. Shortcuts are listed below.
 - **Editor:** color and weight tinting that never hides characters, list continuation, Tab and Shift-Tab indenting, adjustable font size, optional line numbers and indentation guides, and a word, character and line count.
 - **Plain text:** `.txt` files open editor-only. View ▸ Treat as Markdown turns the preview on for that window without renaming the file.
+- **Front matter:** a metadata block at the top of a file, between `---` or `+++` lines, is left out of the preview, print and HTML output.
+- **Quick Look:** select a Markdown file in Finder and press Space to see it rendered.
 - **Output:** Print and Export as PDF use the rendered preview. Edit ▸ Copy as HTML copies the rendered selection or the whole document.
 - **File handling:** reads UTF-8, UTF-16 and Windows-1252, always writes UTF-8, keeps LF or CRLF line endings, and prompts to reload when another app changes the file.
 
@@ -93,6 +95,7 @@ Marked/
   Toolbar/     NSToolbar setup
   Settings/    Preferences and the Settings window
   Resources/   App icon
+MarkedQuickLook/  Finder Quick Look preview extension
 MarkedTests/   Unit and in-app integration tests
 assets/        Vector source for the app icon
 scripts/       Icon rendering and disk image scripts
